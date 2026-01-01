@@ -1,0 +1,639 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body,
+html {
+    height: 100%;
+}
+
+body {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+.announcement-form {
+    max-width: 700px;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.announcement-form .form-group {
+    margin-bottom: 16px;
+}
+
+.announcement-form label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.announcement-form input[type="text"],
+.announcement-form textarea,
+.announcement-form select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alert i {
+    font-size: 18px;
+}
+
+.alert.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.announcement-form textarea {
+    resize: vertical;
+}
+
+.announcement-form button {
+    background: #007bff;
+    color: #fff;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.announcement-form button:hover {
+    background: #0056b3;
+}
+
+.approve-btn {
+    background-color: #28a745;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.avatar {
+    vertical-align: middle;
+    border-radius: 50%;
+    align-self: center;
+    gap: 8px;
+}
+
+.avatar .avatar-upload {
+    border-radius: 100%;
+    background-color: #1E40AF;
+    display: flex;
+}
+
+.avatar .avatar-upload i {
+    font-size: 36px;
+    color: white;
+}
+
+.btn-cancel {
+    padding: 10px 18px;
+    margin-top: 10px;
+    font-size: 1rem;
+    background-color: #dc3545;
+    border-radius: 30px;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+}
+
+.btn-cancel:hover {
+    text-decoration: none;
+    background-color: #c82333;
+}
+
+.container {
+    display: flex;
+    justify-content: space-between;
+    width: 80%;
+    max-width: 1200px;
+    align-items: center;
+    gap: 50px;
+    z-index: 1;
+}
+
+.dashboard-container {
+    display: flex;
+    height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
+.error-text {
+    color: #e74c3c;
+    font-size: 13px;
+    margin-top: 4px;
+    display: none;
+}
+
+.login-box,
+.register-box,
+.forgot-password-box,
+.OTP-box,
+.reset-password-box {
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #333;
+    padding: 30px;
+    border-radius: 10px;
+    min-width: 500px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.login-box h2,
+.register-box h2,
+.forgot-password-box h2,
+.OTP-box h2,
+.reset-password-box h2 {
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+}
+
+.forgot-password-box p,
+.OTP-box p {
+    margin-bottom: 10px;
+    text-align: center;
+    color: #333;
+}
+
+.field {
+    position: relative;
+}
+
+.field input,
+.field select {
+    width: 100%;
+    font-size: 1rem;
+    padding: 10px 12px 10px 40px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    background-color: #dfdfdf;
+    outline: none;
+}
+
+.field i.front-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+    font-size: 1.2rem;
+}
+
+.login-box button,
+.register-box button,
+.forgot-password-box button,
+.OTP-box .verifyBtn,
+.reset-password-box button {
+    width: 100%;
+    padding: 10px;
+    border-radius: 20px;
+    border: none;
+    background-color: #2563EB;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.login-box button:hover,
+.register-box button:hover,
+.forgot-password-box button:hover {
+    background-color: #1E40AF;
+}
+
+.hidden {
+    display: none;
+}
+
+.input-group {
+    margin: 20px 0;
+}
+
+.input-group.error input,
+.input-group.error .otp-inputs input {
+    border-color: #e74c3c;
+}
+
+.input-group.error i.front-icon {
+    color: #e74c3c;
+}
+
+.input-group.error .error-text {
+    display: block;
+}
+
+.login-box a,
+.register-box a {
+    display: block;
+    text-align: center;
+    color: #007BFF;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.login-box a:hover,
+.register-box a:hover,
+.OTP-box a:hover {
+    text-decoration: underline;
+}
+
+.menu-toggle {
+    display: none;
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    background-color: #2563EB;
+    color: white;
+    border: none;
+    font-size: 22px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    z-index: 1100;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fff;
+    color: black;
+    margin: 10% auto;
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 500px;
+}
+
+.modal .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.modal .modal-buttons {
+    margin-top: 20px;
+    text-align: right;
+}
+
+.modal .modal-buttons button {
+    padding: 8px 16px;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+.new-badge {
+    color: red;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+.otp-inputs {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.otp-inputs input {
+    width: 40px;
+    height: 50px;
+    font-size: 2rem;
+    text-align: center;
+}
+
+.reject-btn {
+    background-color: #dc3545;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.resendBtn {
+    background: none;
+    border: none;
+    margin: 10px auto 20px;
+    display: block;
+    color: #0066cc;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.resendBtn:hover {
+    color: #004999;
+}
+
+.right-content {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-self: start;
+}
+
+.right-content h1 {
+    color: black;
+    font-weight: bold;
+}
+
+.reports {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.report-tabs {
+    display: flex;
+    border-bottom: 2px solid #bdc3c7;
+}
+
+.report-tabs button {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.report-list {
+    display: none;
+}
+
+.report-list.active {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 55vh;
+    overflow-y: auto;
+}
+
+.report-tabs .tab-btn {
+    padding: 10px 15px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.report-tabs .tab-btn.active {
+    border-bottom: 3px solid #2980b9;
+    color: #2980b9;
+}
+
+.report-item {
+    display: flex;
+    color: black;
+    align-items: flex-start;
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    gap: 15px;
+}
+
+.report-item img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.report-content {
+    flex: 1;
+}
+
+.report-content p {
+    margin: 5px 0;
+}
+
+.report-item:hover {
+    background-color: #d0d7de;
+}
+
+.sidebar {
+    width: 260px;
+    height: 100%;
+    background: linear-gradient(180deg, #1e3a8a, #2563eb);
+    color: white;
+    position: flex;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+}
+
+.sidebar .logo {
+    width: 100%;
+    display: flex;
+
+    align-items: center;
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    background-color: #1E40AF;
+}
+
+.sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 6px 14px;
+    padding: 12px 18px;
+    color: #e5e7eb;
+    text-decoration: none;
+    border-radius: 14px;
+    font-size: 15px;
+    transition: 0.2s ease;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.sidebar i {
+    font-size: 16px;
+}
+
+.stat-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(9, 46, 116, 0.18);
+}
+
+.stat-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: #eef3ff;
+    color: #0f62fe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-box {
+    display: flex;
+    height: 125px;
+    width: 200px;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    background: #fff;
+    border: 1px solid #e5ecff;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(9, 46, 116, 0.08);
+    color: #0f172a;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.text-section {
+    max-width: 50%;
+    font-size: 2rem;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.text-section h1 {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
+
+.top-stats {
+    display: flex;
+    width: 500px;
+    gap: 20px;
+}
+
+.urgency-badge {
+    min-width: 80px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    color: #fff;
+    text-align: center;
+    font-weight: bold;
+    height: fit-content;
+}
+
+.urgency-approve, .urgency-resolved {
+    background-color: green;
+}
+
+.urgency-pending, .urgency-inprogress {
+    background-color: orange;
+}
+
+.urgency-reject {
+    background-color: red;
+}
+
+.user-info-box {
+    display: contents;
+    text-align: center;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    line-height: 1.3;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .menu-toggle {
+        display: block;
+    }
+
+    .right-content {
+        transition: margin-left 0.3s ease;
+    }
+
+    .right-content.shifted {
+        margin-left: 200px;
+    }
+
+    .register-box {
+        margin: 0 auto;
+    }
+
+    .sidebar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 200px;
+        height: 100%;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1000;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .text-section {
+        display: none;
+    }
+}
