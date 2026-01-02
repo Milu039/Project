@@ -228,7 +228,8 @@ td {
 
 /* Compact Weather Card Styles */
 .weather-card {
-    flex: 0 0 200px; /* Fixed width for small size */
+    height: 200px;
+    width: 200px; /* Fixed width for small size */
     background: white;
     border-radius: 18px;
     padding: 24px;

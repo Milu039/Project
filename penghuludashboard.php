@@ -277,6 +277,8 @@ if ($page === 'sos') {
                             <th>Type</th>
                             <th>Urgency</th>
                             <th>Time Reported</th>
+                            <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -287,6 +289,10 @@ if ($page === 'sos') {
                                     <td><?= htmlspecialchars($row['type']) ?></td>
                                     <td><?= htmlspecialchars($row['urgency_level']) ?></td>
                                     <td><?= htmlspecialchars($row['date_created']) ?></td>
+                                    <td><?= htmlspecialchars($row['status']) ?></td>
+                                    <td>
+                                        <button class="btn-sm btn-primary">View</button>
+                                    </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
@@ -336,11 +342,12 @@ if ($page === 'sos') {
                 <table>
                     <thead>
                         <tr>
-                            <th>SOS ID</th>
                             <th>Village</th>
                             <th>Emergency Type</th>
                             <th>Urgency</th>
                             <th>Time Reported</th>
+                            <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
 
@@ -359,7 +366,6 @@ if ($page === 'sos') {
             <div class="page-header">
                 <div>
                     <h1>Household-level Analysis</h1>
-                    <p>Manage the household records of the villagers</p>
                 </div>
             </div>
 
