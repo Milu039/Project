@@ -9,7 +9,7 @@ $search = $_GET['search'] ?? '';
 $village_filter = $_GET['village'] ?? '';
 $selectedVillage = $village_filter !== '' ? (int)$village_filter : '';
 
-// --- UPDATED CODE START: Handle Status Update (Resolve) ---
+
 if (isset($_POST['action']) && $_POST['action'] === 'resolve_incident' && isset($_POST['incident_id'])) {
     $incident_id = (int)$_POST['incident_id'];
     
@@ -24,29 +24,25 @@ if (isset($_POST['action']) && $_POST['action'] === 'resolve_incident' && isset(
     }
     $update_stmt->close();
 }
+
+// --- UPDATED CODE START: Standardized CSS Class Helpers (Same as Ketua Kampung Page) ---
+/**
+ * Helper to get urgency badge class modeled after the Ketua Kampung logic
+ */
+function getUrgencyClass($level) {
+    // badge urgency {level}
+    return "urgency " . strtolower(trim($level));
+}
+
+/**
+ * Helper to get status badge class modeled after the Ketua Kampung logic
+ */
+function getStatusClass($status) {
+    // badge status {state} (handles spaces like "In Progress" -> "in-progress")
+    return "status " . strtolower(str_replace(' ', '-', trim($status)));
+}
 // --- UPDATED CODE END ---
 
-function getUrgencyClass($level) {
-    $level = strtolower(trim($level));
-    switch ($level) {
-        case 'critical': return 'badge-critical';
-        case 'high':     return 'badge-high';
-        case 'medium':   return 'badge-medium';
-        case 'low':      return 'badge-low';
-        default:         return 'badge-default';
-    }
-}
-
-function getStatusClass($status) {
-    $status = strtolower(trim($status));
-    switch ($status) {
-        case 'pending':     return 'badge-pending';
-        case 'in progress': return 'badge-progress';
-        case 'resolved':    return 'badge-resolved';
-        case 'rejected':    return 'badge-rejected';
-        default:            return 'badge-default';
-    }
-}
 // Fetch coordinates for the active village
 $active_vid = $_SESSION['active_weather_village_id'] ?? 0;
 $subdistricts_lat = 0;
@@ -279,15 +275,25 @@ if ($page === 'sos') {
                     <p>Monitor and manage incident reports from the village</p>
                 </div>
 
-                <select name="village" class="village-select">
-                    <option value="">All Villages</option>
-                    <?php while ($v = $villagesResult->fetch_assoc()): ?>
-                        <option value="<?= $v['id'] ?>"
-                            <?= ($selectedVillage == $v['id']) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($v['village_name']) ?>
-                        </option>
-                    <?php endwhile; ?>
-                </select>
+                <form method="GET" style="display:inline-block;">
+                    <input type="hidden" name="page" value="incident">
+                    <!-- Maintain search query when switching village -->
+                    <?php if($search !== ''): ?>
+                        <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
+                    <?php endif; ?>
+                    
+                    <select name="village" class="village-select" onchange="this.form.submit()">
+                        <option value="">All Villages</option>
+                        <?php 
+                        $villagesResult->data_seek(0);
+                        while ($v = $villagesResult->fetch_assoc()): 
+                        ?>
+                            <option value="<?= $v['id'] ?>" <?= ($selectedVillage == $v['id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($v['village_name']) ?>
+                            </option>
+                        <?php endwhile; ?>
+                    </select>
+                </form>
             </div>
 
             <form method="GET">
@@ -325,22 +331,24 @@ if ($page === 'sos') {
                                     <td><?= htmlspecialchars($row['description']) ?></td>
                                     <td><?= htmlspecialchars($row['type']) ?></td>
                                     <td>
+                                        <!-- --- UPDATED CODE START: Standardized Urgency Class --- -->
                                         <span class="badge <?= getUrgencyClass($row['urgency_level']) ?>">
                                             <?= htmlspecialchars($row['urgency_level']) ?>
                                         </span>
+                                        <!-- --- UPDATED CODE END --- -->
                                     </td>
                                     <td><?= htmlspecialchars($row['date_created']) ?></td>
                                     <td>
+                                        <!-- --- UPDATED CODE START: Standardized Status Class --- -->
                                         <span class="badge <?= getStatusClass($row['status']) ?>">
                                             <?= htmlspecialchars($row['status']) ?>
                                         </span>
+                                        <!-- --- UPDATED CODE END --- -->
                                     </td>
                                     <td>
                                         <div class="action-container">
-                                            <button class="btn btn-sm btn-view">View</button>
-                                            
                                             <!-- Bootstrap Modal Trigger -->
-                                            <button type="button" class="btn btn-sm btn-resolve" 
+                                            <button type="button" class="btn btn-sm btn-view" 
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#resolveModal"
                                                     onclick="populateBootstrapModal(<?= htmlspecialchars(json_encode($row)) ?>)">
@@ -432,7 +440,6 @@ if ($page === 'sos') {
 
     </main>
 
-<!-- --- UPDATED CODE START: Bootstrap 5 Resolve Modal --- -->
     <div class="modal fade" id="resolveModal" tabindex="-1" aria-labelledby="resolveModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -463,19 +470,23 @@ if ($page === 'sos') {
                         <div class="detail-label">Village</div>
                         <div class="detail-value" id="md_village"></div>
                     </div>
-                    
+                    <div class="detail-row">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value" id="md_status"></div>
+                    </div>
+
                     <div class="alert alert-success mt-3 mb-0 py-2 border-0">
                         <small><i class="fa-solid fa-info-circle me-1"></i> Proceed to mark this incident as <strong>Resolved</strong>.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <!-- --- UPDATED CODE START: Horizontal Footer Button Layout --- -->
-                    <div class="d-flex justify-content-end gap-2 w-100">
-                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                        <form method="POST" class="m-0">
+                    <!-- --- UPDATED CODE START: Enforced Horizontal Footer Button Layout --- -->
+                    <div class="d-flex justify-content-end gap-2 w-100 flex-nowrap">
+                        <form method="POST" class="m-0 p-0 d-inline-block">
                             <input type="hidden" name="incident_id" id="md_id">
                             <input type="hidden" name="action" value="resolve_incident">
                             <button type="submit" class="btn btn-resolve btn-sm">Confirm Resolve</button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                         </form>
                     </div>
                     <!-- --- UPDATED CODE END --- -->
@@ -483,12 +494,10 @@ if ($page === 'sos') {
             </div>
         </div>
     </div>
-    <!-- --- UPDATED CODE END --- -->
 
     <!-- Bootstrap 5 JS Bundle (Includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- --- UPDATED CODE START: Populate Modal Script --- -->
     <script>
         function populateBootstrapModal(incident) {
             document.getElementById('md_id').value = incident.id;
@@ -496,9 +505,9 @@ if ($page === 'sos') {
             document.getElementById('md_type').innerText = incident.type;
             document.getElementById('md_urgency').innerText = incident.urgency_level;
             document.getElementById('md_village').innerText = incident.village_name;
+            document.getElementById('md_status').innerText = incident.status;
         }
     </script>
-    <!-- --- UPDATED CODE END --- -->
 
     <?php include_once('includes/footer.php'); ?>
     <script type="text/javascript" src="js/sidebar.js"></script>
