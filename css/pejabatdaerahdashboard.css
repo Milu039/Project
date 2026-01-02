@@ -1,6 +1,8 @@
+/* ===============================
+   GLOBAL / PAGE BASE
+   =============================== */
 html {
     overflow-anchor: none;
-    /* FIX: prevent scroll jump caused by Chart.js */
 }
 
 body.dashboard-page {
@@ -9,56 +11,62 @@ body.dashboard-page {
     color: #0f172a;
     font-family: 'Segoe UI', Arial, sans-serif;
     min-height: 100vh;
-
-    /* 1. Base light color */
     background-color: #f1f5f9;
-
-    /* 2. THE GLOW: Blue and Purple orbs behind the glass */
     background-image:
         radial-gradient(circle at 90% 0%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
         radial-gradient(circle at 0% 100%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
-
-    /* Keeps the glow fixed when you scroll */
     background-attachment: fixed;
 }
 
 /* ===============================
-   SECTIONS / CARDS (GLASS EFFECT)
+   SIDEBAR (FULL HEIGHT)
    =============================== */
+.sidebar {
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: linear-gradient(180deg, #1e3a8a, #2563eb);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    overflow-y: auto;
+}
 
-/* THIS IS THE FIXED PART */
+/* ===============================
+   CONTENT AREA
+   =============================== */
+.right-content {
+    margin-left: 260px;
+    width: calc(100% - 260px);
+    padding: 32px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* ===============================
+   SECTIONS & CARDS
+   =============================== */
 .section,
 .chart-box,
 .incident-details-col,
 .image-wrapper,
 .incident-image-col {
-    /* 1. Semi-transparent white */
     background: rgba(255, 255, 255, 0.85);
-
-    /* 2. The Blur Magic (Frosted Glass) */
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-
-    /* 3. Soft white border */
     border: 1px solid rgba(255, 255, 255, 0.6);
-
-    /* 4. Soft floating shadow */
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-
     border-radius: 20px;
     padding: 28px;
-    /* Default padding */
-}
-
-/* Ensure chart box uses specific padding if needed */
-.chart-box {
-    padding: 24px;
 }
 
 /* ===============================
    PAGE TITLE
    =============================== */
-
 .page-title {
     font-size: 28px;
     font-weight: 700;
@@ -66,40 +74,230 @@ body.dashboard-page {
 }
 
 /* ===============================
-   CHARTS
+   OVERVIEW STATS (REFINED SIZE)
    =============================== */
+/* ===============================
+   OVERVIEW STATS (SINGLE ROW)
+   =============================== */
+.top-stats {
+    display: flex;
+    /* Use Flexbox instead of Grid */
+    justify-content: space-between;
+    gap: 10px;
+    /* Smaller gap to fit them all */
+    width: 100%;
+    overflow-x: auto;
+    /* Allow scroll if screen is too small */
+    padding-bottom: 5px;
+    /* Space for scrollbar if needed */
+}
 
+.stat-box {
+    flex: 1;
+    /* Each box takes equal width */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 15px 5px;
+    /* Reduce side padding to fit */
+    border-radius: 16px;
+    color: white;
+    text-align: center;
+    min-height: 120px;
+    /* Standard height */
+    min-width: 100px;
+    /* Prevent getting too skinny */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.stat-box:hover {
+    transform: translateY(-5px);
+}
+
+/* Colors for Stat Boxes */
+.stat-box.blue {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+}
+
+.stat-box.orange {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.stat-box.red {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+
+.stat-box.green {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.stat-box.purple {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+/* FIX: Smaller Icon Size */
+.stat-icon {
+    background: transparent !important;
+    box-shadow: none !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    margin-bottom: 5px;
+    /* Reduced margin */
+    display: flex;
+    justify-content: center;
+}
+
+.stat-icon i {
+    font-size: 24px !important;
+    /* Reduced from 36px to 24px */
+    color: white !important;
+    opacity: 1 !important;
+}
+
+/* FIX: Smaller Text Labels */
+.stat-content p {
+    margin: 0;
+    font-size: 11px;
+    /* Reduced from 12px */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+/* FIX: Smaller Numbers */
+.stat-content h2 {
+    margin: 2px 0 0 0;
+    font-size: 22px;
+    /* Reduced from 28px to 22px */
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+/* Mobile: Stack them */
+@media (max-width: 900px) {
+    .top-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Colors for Stat Boxes */
+.stat-box.blue {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+}
+
+.stat-box.orange {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.stat-box.red {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+
+.stat-box.green {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.stat-box.purple {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+/* ... keep your existing .stat-box styles ... */
+
+/* FIX: Remove white background from the icons inside the colored boxes */
+.stat-icon {
+    background: transparent !important;
+    /* Removes the white square/circle */
+    box-shadow: none !important;
+    /* Removes any shadow */
+    width: auto !important;
+    /* Let it fit natural size */
+    height: auto !important;
+    border-radius: 0 !important;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
+}
+
+/* Make the icon itself larger and white */
+.stat-icon i {
+    font-size: 36px !important;
+    color: white !important;
+    opacity: 1 !important;
+}
+
+/* ===============================
+   CHARTS (FIXED LAYOUT)
+   =============================== */
 .chart-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 26px;
+    width: 100%;
+}
+
+.chart-box {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    border-radius: 20px;
+
+    /* LAYOUT SETTINGS */
+    padding: 24px;
+    height: 420px;
+    /* 1. Fixed height for the white box */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    /* 2. Push content to top */
+    position: relative;
+    /* 3. Important for Chart.js resizing */
 }
 
 .chart-box h3 {
-    margin-bottom: 16px;
+    margin: 0 0 15px 0;
+    /* Space below title */
     font-size: 18px;
+    font-weight: 700;
+    color: #334155;
+    flex-shrink: 0;
+    /* Prevent title from shrinking */
 }
 
+/* 4. Canvas fills the remaining height */
 .chart-box canvas {
-    width: 50% !important;
-    height: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 330px !important;
+    /* Keeps chart from overflowing */
+}
+
+/* On mobile, stack charts */
+@media (max-width: 900px) {
+    .chart-row {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-box {
+        height: auto;
+        min-height: 400px;
+    }
 }
 
 /* ===============================
-   INCIDENT TABLE HEADER & ACTIONS
+   TABLE ACTIONS
    =============================== */
-
 .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.section-header .page-title {
-    margin: 0;
 }
 
 .table-actions {
@@ -116,10 +314,6 @@ body.dashboard-page {
     font-weight: 600;
 }
 
-.btn-export:hover {
-    background: #15803d;
-}
-
 .btn-print {
     background: #2563eb;
     color: white;
@@ -130,30 +324,9 @@ body.dashboard-page {
     font-weight: 600;
 }
 
-.btn-print:hover {
-    background: #1d4ed8;
-}
-
 /* ===============================
-   RESPONSIVE
+   INCIDENT DETAILS & BADGES
    =============================== */
-
-@media (max-width: 768px) {
-    .top-stats {
-        display: flex;
-        overflow-x: auto;
-        padding-bottom: 10px;
-    }
-
-    .stat-box {
-        min-width: 120px;
-    }
-}
-
-/* ===============================
-   INCIDENT DETAILS (REVERTED CLEAN VERSION)
-   =============================== */
-
 .incident-header-row {
     display: flex;
     justify-content: space-between;
@@ -168,11 +341,6 @@ body.dashboard-page {
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: 0.2s;
-}
-
-.btn-back:hover {
-    color: #0f172a;
 }
 
 .incident-card-container {
@@ -209,7 +377,6 @@ body.dashboard-page {
     display: block;
     font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
     color: #94a3b8;
     font-weight: 700;
     margin-bottom: 6px;
@@ -231,9 +398,6 @@ body.dashboard-page {
     gap: 20px;
 }
 
-/* Image Column styles are handled by the shared "Glass Effect" block above */
-/* Just adding content specific styling here */
-
 .image-wrapper {
     border-radius: 12px;
     overflow: hidden;
@@ -254,6 +418,7 @@ body.dashboard-page {
     color: #64748b;
     background: white;
     font-weight: 600;
+    text-align: center;
 }
 
 .btn-view-full {
@@ -269,11 +434,13 @@ body.dashboard-page {
     color: #94a3b8;
     border: 2px dashed #cbd5e1;
     border-radius: 12px;
+    text-align: center;
 }
 
 .no-photo i {
     font-size: 40px;
     margin-bottom: 10px;
+    display: block;
 }
 
 .btn-close-large {
@@ -286,15 +453,10 @@ body.dashboard-page {
     font-weight: bold;
     font-size: 16px;
     cursor: pointer;
-    transition: 0.2s;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 10px;
-}
-
-.btn-close-large:hover {
-    background: #b91c1c;
 }
 
 .badge-red {
@@ -322,16 +484,9 @@ body.dashboard-page {
     color: #475569;
 }
 
-@media (max-width: 900px) {
-    .incident-card-container {
-        grid-template-columns: 1fr;
-    }
-}
-
 /* ===============================
-   CRITICAL ALERT BANNER
+   ALERT BANNER
    =============================== */
-
 .alert-banner {
     background: #fef2f2;
     border: 1px solid #fee2e2;
@@ -352,33 +507,24 @@ body.dashboard-page {
     font-size: 16px;
     margin-bottom: 12px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+}
+
+.alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .alert-item {
     background: white;
     padding: 10px 15px;
     border-radius: 8px;
-    margin-bottom: 6px;
     color: #7f1d1d;
     font-size: 14px;
     border: 1px solid #fecaca;
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-.alert-item small {
-    color: #991b1b;
-    opacity: 0.8;
-}
-
-.alert-text {
-    display: flex;
-    gap: 6px;
-    /* Spacing between "Flood" "in" "Village" */
-    align-items: center;
-    color: #450a0a;
 }
 
 @keyframes pulseAlert {
@@ -396,8 +542,21 @@ body.dashboard-page {
 }
 
 /* ===============================
-   PRINT MODE
+   RESPONSIVE & PRINT
    =============================== */
+@media (max-width: 900px) {
+    .incident-card-container {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-row {
+        grid-template-columns: 1fr;
+    }
+
+    .top-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
 
 @media print {
 

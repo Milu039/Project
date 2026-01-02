@@ -5,7 +5,7 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 
 $page = $_GET['page'] ?? 'overview';
 
-$area_id = (int)($_SESSION['area_id'] ?? 0);
+$area_id = (int) ($_SESSION['area_id'] ?? 0);
 
 $villages = [];
 
@@ -121,44 +121,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
             <img src="images/icon.png" style="scale: 0.75;" alt="Logo" class="logo-img">
             <p>DVMD</p>
         </div>
+
         <div class="user-info-box">
             <div class="avatar">
-                <a class="avatar-upload" title="Upload Avatar">
-                    <i class="fas fa-user"></i>
-                </a>
+                <a class="avatar-upload"><i class="fas fa-user"></i></a>
             </div>
             <div class="user-info">
                 <div style="font-weight: bold;font-size: 15px;">
                     <?php
-                    $roleNames = [
-                        '0' => 'Ketua Kampung',
-                        '1' => 'Penghulu',
-                        '2' => 'Pejabat Daerah'
-                    ];
+                    $roleNames = ['0' => 'Ketua Kampung', '1' => 'Penghulu', '2' => 'Pejabat Daerah'];
                     echo $roleNames[$_SESSION['role']] ?? 'Unknown';
-                    ?></div>
+                    ?>
+                </div>
                 <div style="font-size: 14px;"><?php echo $_SESSION['user_name']; ?></div>
-                <div style="font-size: 13px;opacity: 0.8;"><?php echo $_SESSION['user_email']; ?></div>
             </div>
         </div>
 
-        <a class="sidebar-link" href="?page=overview"><i class="fas fa-chart-line"></i> Overview</a>
-        <a class="sidebar-link" href="?page=announcement"><i class="fas fa-bell"></i> Make Announcement</a>
-        <a class="sidebar-link" href="?page=villages"><i class="fas fa-house"></i> Villages </a>
-        <a class="sidebar-link" href="?page=report"><i class="fas fa-triangle-exclamation"></i> Report</a>
-        <a class="sidebar-link" href="?page=map"><i class="fas fa-map"></i> Map</a>
-        <a href="?page=analytics" class="<?= $page === 'analytics' ? 'active' : '' ?>"><i class="fas fa-chart-pie"></i> Analytics</a>
-        <a href="registerpage.php?"><i class="fas fa-user-plus"></i> Register Account</a>
+        <a class="sidebar-link <?= $page === 'overview' ? 'active' : '' ?>" href="?page=overview">
+            <i class="fas fa-chart-line"></i> Overview
+        </a>
 
-        <a href="logout.php" onclick="return confirm('Logout?')"><i class="fas fa-right-from-bracket"></i> Logout</a>
+        <a class="sidebar-link <?= $page === 'announcement' ? 'active' : '' ?>" href="?page=announcement">
+            <i class="fas fa-bell"></i> Make Announcement
+        </a>
+
+        <a class="sidebar-link <?= $page === 'villages' ? 'active' : '' ?>" href="?page=villages">
+            <i class="fas fa-house"></i> Villages
+        </a>
+
+        <a class="sidebar-link <?= $page === 'report' ? 'active' : '' ?>" href="?page=report">
+            <i class="fas fa-triangle-exclamation"></i> Report
+        </a>
+
+        <a class="sidebar-link <?= $page === 'map' ? 'active' : '' ?>" href="?page=map">
+            <i class="fas fa-map"></i> Map
+        </a>
+
+        <a class="sidebar-link <?= $page === 'analytics' ? 'active' : '' ?>" href="?page=analytics">
+            <i class="fas fa-chart-pie"></i> Analytics
+        </a>
+
+        <a class="sidebar-link" href="registerpage.php">
+            <i class="fas fa-user-plus"></i> Register Account
+        </a>
+
+        <a class="sidebar-link" href="logout.php" onclick="return confirm('Logout?')">
+            <i class="fas fa-right-from-bracket"></i> Logout
+        </a>
     </div>
 
     <div class="right-content">
         <?php if ($page === 'overview'): ?>
-            <div id="dashboard"
-                data-area-type="<?= $_SESSION['role'] ?>"
-                data-area-id="<?= $_SESSION['area_id'] ?>">
+            <div id="dashboard" data-area-type="<?= $_SESSION['role'] ?>" data-area-id="<?= $_SESSION['area_id'] ?>">
             </div>
+
             <script type="text/javascript" src="js/weather.js"></script>
 
             <?php
@@ -178,6 +194,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                     SELECT COUNT(*) c FROM tbl_incidents 
                     WHERE status='Resolved'
                 ")->fetch_assoc()['c'];
+
+            $sos_active = $conn->query("
+                            SELECT COUNT(*) c FROM tbl_sos 
+                            WHERE status NOT IN ('Resolved', 'False Alarm')
+                        ")->fetch_assoc()['c'];
 
             // 2. Weather Location
             $weather_loc = $conn->query("SELECT id FROM tbl_villages LIMIT 1")->fetch_assoc();
@@ -200,15 +221,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
             <section class="section">
                 <div class="page-title">District Overview</div>
                 <?php
-                // UPDATED: Alert logic for Critical/High urgencies that are not resolved
-                $alerts = $conn->query("
-                        SELECT i.type, v.village_name, i.date_created 
-                        FROM tbl_incidents i 
-                        JOIN tbl_villages v ON i.village_id = v.id 
-                        WHERE (i.urgency_level = 'High' OR i.urgency_level = 'Critical') 
-                        AND i.status NOT IN ('Resolved', 'False Alarm')
-                    ");
-                ?>
+                    // UPDATED: Fetch Critical/High items from BOTH Incidents AND SOS tables
+                    $alerts = $conn->query("
+                    (SELECT i.type, v.village_name, i.date_created, 'Incident' as source
+                    FROM tbl_incidents i 
+                    JOIN tbl_villages v ON i.village_id = v.id 
+                    WHERE (i.urgency_level = 'High' OR i.urgency_level = 'Critical') 
+                    AND i.status NOT IN ('Resolved', 'False Alarm'))
+
+                    UNION ALL
+
+                    (SELECT s.type, v.village_name, s.created_at as date_created, 'SOS' as source
+                    FROM tbl_sos s
+                    JOIN tbl_villages v ON s.village_id = v.id
+                    WHERE (s.urgency_level = 'High' OR s.urgency_level = 'Critical')
+                    AND s.status NOT IN ('Resolved', 'False Alarm'))
+
+                    ORDER BY date_created DESC
+                ");
+                    ?>
 
                 <?php if ($alerts->num_rows > 0): ?>
                     <div class="alert-banner">
@@ -232,48 +263,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                 <?php endif; ?>
 
                 <div class="top-stats">
-                    <div class="stat-box">
+
+                    <div class="stat-box red">
                         <div class="stat-icon">
-                            <i class="fas fa-house"></i>
+                            <i class="fas fa-life-ring"></i>
                         </div>
-                        <div class="stat-content>">
+                        <div class="stat-content">
+                            <p>Active SOS</p>
+                            <h2><?= $sos_active ?></h2>
+                        </div>
+                    </div>
+
+                    <div class="stat-box blue">
+                        <div class="stat-icon"><i class="fas fa-house"></i></div>
+                        <div class="stat-content">
                             <p>Villages</p>
                             <h2><?= $v ?></h2>
                         </div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-icon">
-                            <i class="fas fa-triangle-exclamation"></i>
-                        </div>
+
+                    <div class="stat-box orange">
+                        <div class="stat-icon"><i class="fas fa-triangle-exclamation"></i></div>
                         <div class="stat-content">
                             <p>Incidents</p>
                             <h2><?= $i ?></h2>
                         </div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-icon">
-                            <i class="fas fa-bolt"></i>
-                        </div>
+
+                    <div class="stat-box red">
+                        <div class="stat-icon"><i class="fas fa-bolt"></i></div>
                         <div class="stat-content">
                             <p>High / Critical</p>
                             <h2><?= $high ?></h2>
                         </div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-icon">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
+
+                    <div class="stat-box green">
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
                         <div class="stat-content">
                             <p>Resolved</p>
                             <h2><?= $cl ?></h2>
                         </div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-icon" id="weatherIcon"></div>
+
+                    <div class="stat-box purple">
+                        <div class="stat-icon" id="weatherIcon"><i class="fas fa-cloud"></i></div>
                         <div class="stat-content">
                             <p>District Weather</p>
                             <h2 id="weatherTemp">--°C</h2>
-                            <div id="weatherDesc"></div>
+                            <div id="weatherDesc" style="font-size:11px;">Loading...</div>
                         </div>
                     </div>
                 </div>
@@ -322,11 +360,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                     type: 'pie',
                     data: {
                         labels: [<?php while ($t = $typeData->fetch_assoc())
-                                        echo "'{$t['type']}',"; ?>],
+                            echo "'{$t['type']}',"; ?>],
                         datasets: [{
                             data: [<?php mysqli_data_seek($typeData, 0);
-                                    while ($t = $typeData->fetch_assoc())
-                                        echo "{$t['total']},"; ?>],
+                            while ($t = $typeData->fetch_assoc())
+                                echo "{$t['total']},"; ?>],
                             backgroundColor: ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6']
                         }]
                     },
@@ -340,11 +378,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                     type: 'doughnut',
                     data: {
                         labels: [<?php while ($s = $statusData->fetch_assoc())
-                                        echo "'{$s['status']}',"; ?>],
+                            echo "'{$s['status']}',"; ?>],
                         datasets: [{
                             data: [<?php mysqli_data_seek($statusData, 0);
-                                    while ($s = $statusData->fetch_assoc())
-                                        echo "{$s['total']},"; ?>],
+                            while ($s = $statusData->fetch_assoc())
+                                echo "{$s['total']},"; ?>],
                             // Colors for Pending, In Progress, Progressing, Resolved, False Alarm
                             backgroundColor: ['#555', '#2f5bea', '#7d3cff', '#1e824c', '#c0392b']
                         }]
@@ -374,14 +412,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                 <!-- TITLE -->
                 <div class="form-group">
                     <label>Announcement Title</label>
-                    <input type="text" name="title" required
-                        placeholder="Enter announcement title">
+                    <input type="text" name="title" required placeholder="Enter announcement title">
                 </div>
                 <!-- DESCRIPTION -->
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea name="description" rows="5" required
-                        placeholder="Enter announcement details"></textarea>
+                    <textarea name="description" rows="5" required placeholder="Enter announcement details"></textarea>
                 </div>
                 <!-- TYPE -->
                 <div class="form-group">
@@ -504,7 +540,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                 <br><a href="?page=villages" class="btn btn-view">← Back to Villages</a>
             </section>
             <script>
-                document.getElementById("searchVillager").addEventListener("keyup", function() {
+                document.getElementById("searchVillager").addEventListener("keyup", function () {
                     let text = this.value.toLowerCase();
                     document.querySelectorAll("#villagerTable tr").forEach((row, i) => {
                         if (i > 0) row.style.display = row.innerText.toLowerCase().includes(text) ? "" : "none";
@@ -515,27 +551,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
         <?php elseif ($page === 'report'): ?>
 
             <?php
+            // UPDATED QUERY: Shows ALL incidents from the table (Removed District Filter)
             $stmt = $conn->prepare("
                         SELECT i.id, i.type, i.urgency_level, i.status, i.date_created AS reported_date,
                         v.village_name, 'incident' AS source
                         FROM tbl_incidents i
-                        JOIN tbl_villages v ON i.village_id = v.id
-                        JOIN tbl_subdistricts s ON v.subdistrict_id = s.id
-                        WHERE 1 = 1 AND s.district_id = ?
+                        LEFT JOIN tbl_villages v ON i.village_id = v.id
 
                         UNION ALL
 
                         SELECT so.id, so.type, so.urgency_level, so.status, so.created_at AS reported_date,
                         v2.village_name, 'sos' AS source
                         FROM tbl_sos so
-                        JOIN tbl_villages v2 ON so.village_id = v2.id
-                        JOIN tbl_subdistricts s2 ON v2.subdistrict_id = s2.id
-                        WHERE 1 = 1 AND s2.district_id = ?
+                        LEFT JOIN tbl_villages v2 ON so.village_id = v2.id
 
                         ORDER BY reported_date DESC
                     ");
 
-            $stmt->bind_param("ii", $area_id, $area_id);
+            // No parameters needed since we are fetching ALL rows
             $stmt->execute();
             $resultSet = $stmt->get_result();
             ?>
@@ -567,12 +600,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                         <option value="Pending">Pending</option>
                         <option value="In Progress">In Progress</option>
                         <option value="Resolved">Resolved</option>
-                        <option value="Rejected">Rejected</option>
+                        <option value="Reject">Reject</option>
                     </select>
                 </div>
 
                 <div class="report-list active">
-                    <table>
+                    <table id="incidentTable">
                         <tr>
                             <th>Type</th>
                             <th>Village</th>
@@ -583,15 +616,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                         </tr>
 
                         <?php
-                        if ($resultSet->num_rows > 0) :
+                        if ($resultSet->num_rows > 0):
                             while ($result = $resultSet->fetch_assoc()):
                                 $createdTime = strtotime($result['reported_date']);
                                 $isNew = (time() - $createdTime) <= 24 * 60 * 60;
-                        ?>
+                                ?>
 
                                 <tr>
-                                    <td style="text-align: left;"><?= htmlspecialchars($result['type']) ?><?php if ($isNew) echo ' <span class="new-badge">NEW</span>'; ?></td>
-                                    <td><?= htmlspecialchars($result['village_name']) ?></td>
+                                    <td style="text-align: left;">
+                                        <?= htmlspecialchars($result['type']) ?>             <?php if ($isNew)
+                                                           echo ' <span class="new-badge">NEW</span>'; ?>
+                                    </td>
+                                    <td><?= htmlspecialchars($result['village_name'] ?? 'Unknown Village') ?></td>
 
                                     <td>
                                         <span class="badge urgency <?= strtolower($result['urgency_level']) ?>">
@@ -608,7 +644,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                                     </td>
 
                                     <td>
-                                        <a class="btn btn-view" href="?page=view&source=<?= $result['source'] ?>&id=<?= $result['id'] ?>">View</a>
+                                        <a class="btn btn-view"
+                                            href="?page=view&source=<?= $result['source'] ?>&id=<?= $result['id'] ?>">View</a>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
@@ -637,12 +674,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                     document.querySelectorAll("#incidentTable tr").forEach((row, i) => {
                         if (i === 0) return;
                         let content = row.innerText.toLowerCase();
-                        let rowType = row.cells[1].innerText.toLowerCase();
-                        let rowStatus = row.cells[3].innerText.toLowerCase();
+                        // Adjust column indices if needed: Type is usually index 0, Status index 4
+                        let rowType = row.cells[0].innerText.toLowerCase();
+                        let rowStatus = row.cells[4].innerText.toLowerCase();
 
                         let show = content.includes(text);
-                        if (type && rowType !== type) show = false;
-                        if (status && rowStatus !== status) show = false;
+                        if (type && !rowType.includes(type)) show = false;
+                        if (status && !rowStatus.includes(status)) show = false;
 
                         row.style.display = show ? "" : "none";
                     });
@@ -710,7 +748,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                         <div class="info-grid">
                             <div class="detail-group">
                                 <label>Specific Location</label>
-                                <p><?= htmlspecialchars($result['latitude']) ?>, <?= htmlspecialchars($result['longitude']) ?></p>
+                                <p><?= htmlspecialchars($result['latitude']) ?>,
+                                    <?= htmlspecialchars($result['longitude']) ?>
+                                </p>
                             </div>
                             <div class="detail-group">
                                 <label>Date Reported</label>
@@ -857,7 +897,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                         },
                         options: {
                             indexAxis: 'y',
-                            responsive: true
+                            responsive: true,
+                            maintainAspectRatio: false, // <--- ADD THIS LINE
+                            plugins: {
+                                legend: { display: false } // Hides the label if you want more space
+                            }
                         }
                     });
                 }
@@ -877,7 +921,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                             }]
                         },
                         options: {
-                            responsive: true
+                            responsive: true,
+                            maintainAspectRatio: false, // <--- ADD THIS LINE
+                            scales: {
+                                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                            }
                         }
                     });
                 }
@@ -891,17 +939,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_incident'])) {
                             labels: <?= json_encode($uLabels) ?>,
                             datasets: [{
                                 data: <?= json_encode($uCounts) ?>,
-                                backgroundColor: ['#3b82f6', '#f59e0b', '#ef4444', '#7f1d1d'], // Blue(Low), Orange(Med), Red(High), DarkRed(Critical)
+                                backgroundColor: ['#3b82f6', '#f59e0b', '#ef4444', '#7f1d1d'],
                                 borderWidth: 0
                             }]
                         },
                         options: {
                             responsive: true,
-                            maintainAspectRatio: false,
+                            maintainAspectRatio: false, // <--- ADD THIS LINE
                             plugins: {
-                                legend: {
-                                    position: 'right'
-                                }
+                                legend: { position: 'right' }
                             }
                         }
                     });

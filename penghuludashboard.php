@@ -122,6 +122,7 @@ if ($page === 'sos') {
     <title>Penghulu Dashboard | Digital Village Dashboard Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="css/penghuludashboard.css" rel="stylesheet" type="text/css" />
+    <link href="css/style.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
@@ -168,7 +169,7 @@ if ($page === 'sos') {
         <a href="?page=household" class="<?= isActive('household') ?>">
             <i class="fa-solid fa-house"></i> Household Level
         </a>
-        <a href="registerpage.php?role=<?= $_SESSION['role'] ?>&id=<?=  $_SESSION['subdistrct_id'] ?>" class="<?= isActive('register') ?>">
+        <a href="registerpage.php" class="<?= isActive('register') ?>">
             <i class="fa-solid fa-user-plus"></i> Register Account
         </a>
         <a href="logout.php" onclick="return confirm('Logout?')">
@@ -190,19 +191,6 @@ if ($page === 'sos') {
             <div class="dashboard-header">
                 <h1>Village Dashboard</h1>
                 <p class="subtitle">Overview of villager population across communities</p>
-            </div>
-
-            <!-- TOTAL VILLAGERS CARD -->
-            <div class="section total-villagers-card">
-                <div class="total-card-content">
-                    <div class="icon-box">
-                        <i class="fa-solid fa-users"></i>
-                    </div>
-                    <div>
-                        <span class="label">Total Villagers</span>
-                        <h2><?= $totalVillagersCount ?></h2>
-                    </div>
-                </div>
             </div>
             
             <!-- COMPACT WEATHER CARD -->
@@ -372,86 +360,6 @@ if ($page === 'sos') {
                 <div>
                     <h1>Household-level Analysis</h1>
                     <p>Manage the household records of the villagers</p>
-                </div>
-
-                <form method="GET" action="">
-                    <input type="hidden" name="page" value="household">
-                    <select name="village" class="village-select" onchange="this.form.submit()">
-                        <option value="">All Villages</option>
-                        <?php 
-                        $villagesResult->data_seek(0);
-                        while ($v = $villagesResult->fetch_assoc()): 
-                        ?>
-                            <option value="<?= $v['id'] ?>" <?= ($selectedVillage == $v['id']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($v['village_name']) ?>
-                            </option>
-                        <?php endwhile; ?>
-                    </select>
-                </form>
-            </div>
-
-            <form method="GET">
-                <input type="hidden" name="page" value="household">
-
-                <div class="controls">
-                    <input type="text"
-                        name="search"
-                        class="search-box"
-                        placeholder="Search villagers by name..."
-                        value="<?= htmlspecialchars($search) ?>">
-
-                    <div class="control-buttons">
-                        <button class="btn-outline" type="submit">Search</button>
-                    </div>
-                </div>
-            </form>
-
-            <div class="table-card">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Villager's Name</th>
-                            <th>Phone Number</th>
-                            <th>Address</th>
-                            <th>Family Member</th>
-                            <th>Family Group</th>
-                            <th>SARA</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Static Frontend Mockup (No Database Connection Yet) -->
-                        <tr>
-                            <td>John Doe</td>
-                            <td>012-3456789</td>
-                            <td>No. 123, Jalan Greenwood</td>
-                            <td>4</td>
-                            <td>B40</td>
-                            <td>Approved</td>
-                        </tr>
-                        <tr>
-                            <td>Jane Smith</td>
-                            <td>019-8765432</td>
-                            <td>Lot 45, Kampung Riverside</td>
-                            <td>4</td>
-                            <td>M40</td>
-                            <td>Approved</td>
-                        </tr>
-                        <!-- Empty State Placeholder if Results were empty -->
-                        <!-- 
-                        <tr>
-                            <td colspan="6" class="empty-state">No household records to display</td>
-                        </tr> 
-                        -->
-                    </tbody>
-                </table>
-            </div>
-
-        <?php elseif ($page === 'register'): ?>
-
-            <div class="page-header">
-                <div>
-                    <h1>Register</h1>
-                    <p>Register new villagers or update existing records</p>
                 </div>
             </div>
 
