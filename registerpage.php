@@ -2,8 +2,8 @@
 session_start();
 include('includes/dbconnect.php');
 
-$user_role = (int)isset($_GET['role']) ? (int)$_GET['role'] : 0; // Creator role
-$user_area_id = (int)isset($_GET['id']) ? (int)$_GET['id'] : 0; // Creator area id
+$user_role = (int)$_SESSION['role']; // Creator role
+$user_area_id = (int)$_SESSION['area_id']; // Creator area id
 $role_options = [];
 $errors = [
     'role' => '',
@@ -11,6 +11,7 @@ $errors = [
     'phone' => '',
     'area' => '',
     'password' => '',
+    'address' => '',
     'confirm_password' => ''
 ];
 $registerFailed = false;
@@ -39,9 +40,11 @@ if (isset($_POST['register'])) {
     $hasError = false;
 
     // Server-side enforcement: role must be allowed for creator
-    if (!array_key_exists($role, $role_options)) {
-        $errors['role'] = "You are not allowed to create this role";
-        $hasError = true;
+    if ($user_role != 0) {
+        if (!array_key_exists($role, $role_options)) {
+            $errors['role'] = "You are not allowed to create this role";
+            $hasError = true;
+        }
     }
 
     // Email validation
@@ -77,6 +80,15 @@ if (isset($_POST['register'])) {
         }
     }
 
+    // Address validation for ketua kampung
+    if ($user_role == 0) {
+        $address = trim($_POST['address'] ?? '');
+        if ($address === '') {
+            $errors['address'] = "Required field";
+            $hasError = true;
+        }
+    }
+
     // Password validation
     if (
         strlen($pass) < 8 ||
@@ -107,16 +119,18 @@ if (isset($_POST['register'])) {
             $stmt->store_result();
             $stmt->bind_result($village_id);
 
+
             if ($stmt->num_rows > 0) {
                 $stmt->fetch(); // if yes get id
             } else {
                 $errors['area'] = "Invalid Village Name";
+                exit;
             }
             $stmt->close();
 
             // Insert villager using village_id
-            $stmt = $conn->prepare("INSERT INTO tbl_villagers (name, email, phone, village_id, password) VALUES (?, ?, ?, ?, ?)");
-            $stmt->bind_param("sssis", $name, $email, $phone, $village_id, $hashedPassword);
+            $stmt = $conn->prepare("INSERT INTO tbl_villagers (name, email, phone, village_id, address, password) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssiss", $name, $email, $phone, $village_id, $address, $hashedPassword);
         } else if ($user_role == 1) { // Penghulu
             $stmt = $conn->prepare("SELECT id FROM tbl_villages WHERE village_name = ? AND subdistrict_id = ?");
             $stmt->bind_param("si", $area, $user_area_id);
@@ -154,7 +168,7 @@ if (isset($_POST['register'])) {
                 } else {
                     $errors['area'] = "No subdistrict found under this district.";
                     $stmt->close();
-                    return;
+                    exit;
                 }
                 $stmt->close();
 
@@ -182,7 +196,7 @@ if (isset($_POST['register'])) {
                 $stmt->bind_param("isssis", $role, $name, $email, $phone, $village_id, $hashedPassword);
             } else if ($role == 1) {
                 $stmt = $conn->prepare("SELECT id FROM tbl_subdistricts WHERE name = ? AND district_id = ?");
-                $stmt->bind_param("s", $area, $user_area_id);// disctrict area id
+                $stmt->bind_param("s", $area, $user_area_id); // disctrict area id
                 $stmt->execute();
                 $stmt->store_result();
                 $stmt->bind_result($subdistrict_id);
@@ -319,58 +333,112 @@ function getCoordinates($villageName)
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <div class="input-group">
+                        <div class="field">
+                            <i class="fas fa-user front-icon"></i>
+                            <input type="text" name="name" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" placeholder="Full Name" required>
+                        </div>
+                    </div>
+
+                    <div class="input-group <?= $errors['email'] ? 'error' : '' ?>">
+                        <div class="field">
+                            <i class="fas fa-envelope front-icon"></i>
+                            <input type="email" name="email" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" placeholder="Email Address" required>
+                        </div>
+                        <small class="error-text"><?= $errors['email']; ?></small>
+                    </div>
+
+                    <div class="input-group <?= $errors['phone'] ? 'error' : '' ?>">
+                        <div class="field">
+                            <i class="fas fa-phone front-icon"></i>
+                            <input type="text" name="phone" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" placeholder="Phone Number (e.g. 0123456789)" required>
+                        </div>
+                        <small class="error-text"><?= $errors['phone']; ?></small>
+                    </div>
+
+                    <div class="input-group <?= $errors['area'] ? 'error' : '' ?>">
+                        <div class="field">
+                            <i class="fas fa-map-marker-alt front-icon"></i>
+                            <input type="text" name="area" id="areaHint" value="<?= htmlspecialchars($_POST['area'] ?? '') ?>" placeholder="Village name" required>
+                        </div>
+                        <small class="error-text"><?= $errors['area']; ?></small>
+                    </div>
+
+                    <div class="input-group <?= $errors['password'] ? 'error' : '' ?>">
+                        <div class="field">
+                            <i class="fas fa-lock front-icon"></i>
+                            <input type="password" name="password" placeholder="Password" required>
+                        </div>
+                        <small class="error-text"><?= $errors['password']; ?></small>
+                    </div>
+
+                    <div class="input-group <?= $errors['confirm_password'] ? 'error' : '' ?>">
+                        <div class="field">
+                            <i class="fas fa-lock front-icon"></i>
+                            <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+                        </div>
+                        <small class="error-text"><?= $errors['confirm_password']; ?></small>
+                    </div>
                     <small class="error-text"><?= $errors['role']; ?></small>
                 </div>
             <?php else: ?>
                 <input type="hidden" name="role" value="0">
+                <div class="input-group">
+                    <div class="field">
+                        <i class="fas fa-user front-icon"></i>
+                        <input type="text" name="name" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" placeholder="Full Name" required>
+                    </div>
+                </div>
+
+                <div class="input-group <?= $errors['email'] ? 'error' : '' ?>">
+                    <div class="field">
+                        <i class="fas fa-envelope front-icon"></i>
+                        <input type="email" name="email" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" placeholder="Email Address" required>
+                    </div>
+                    <small class="error-text"><?= $errors['email']; ?></small>
+                </div>
+
+                <div class="input-group <?= $errors['phone'] ? 'error' : '' ?>">
+                    <div class="field">
+                        <i class="fas fa-phone front-icon"></i>
+                        <input type="text" name="phone" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" placeholder="Phone Number (e.g. 0123456789)" required>
+                    </div>
+                    <small class="error-text"><?= $errors['phone']; ?></small>
+                </div>
+
+                <div class="input-group <?= $errors['area'] ? 'error' : '' ?>">
+                    <div class="field">
+                        <i class="fas fa-map-marker-alt front-icon"></i>
+                        <input type="text" name="area" id="areaHint" value="<?= htmlspecialchars($_POST['area'] ?? '') ?>" placeholder="Village name" required>
+                    </div>
+                    <small class="error-text"><?= $errors['area']; ?></small>
+                </div>
+
+                <div class="input-group <?= $errors['address'] ? 'error' : '' ?>">
+                    <div class="field">
+                        <i class="fas fa-map-marker-alt front-icon"></i>
+                        <input type="text" name="address" value="<?= htmlspecialchars($_POST['address'] ?? '') ?>" placeholder="Address" required>
+                    </div>
+                    <small class="error-text"><?= $errors['address']; ?></small>
+                </div>
+
+                <div class="input-group <?= $errors['password'] ? 'error' : '' ?>">
+                    <div class="field">
+                        <i class="fas fa-lock front-icon"></i>
+                        <input type="password" name="password" placeholder="Password" required>
+                    </div>
+                    <small class="error-text"><?= $errors['password']; ?></small>
+                </div>
+
+                <div class="input-group <?= $errors['confirm_password'] ? 'error' : '' ?>">
+                    <div class="field">
+                        <i class="fas fa-lock front-icon"></i>
+                        <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+                    </div>
+                    <small class="error-text"><?= $errors['confirm_password']; ?></small>
+                </div>
             <?php endif; ?>
 
-            <div class="input-group">
-                <div class="field">
-                    <i class="fas fa-user front-icon"></i>
-                    <input type="text" name="name" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" placeholder="Full Name" required>
-                </div>
-            </div>
-
-            <div class="input-group <?= $errors['email'] ? 'error' : '' ?>">
-                <div class="field">
-                    <i class="fas fa-envelope front-icon"></i>
-                    <input type="email" name="email" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" placeholder="Email Address" required>
-                </div>
-                <small class="error-text"><?= $errors['email']; ?></small>
-            </div>
-
-            <div class="input-group <?= $errors['phone'] ? 'error' : '' ?>">
-                <div class="field">
-                    <i class="fas fa-phone front-icon"></i>
-                    <input type="text" name="phone" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" placeholder="Phone Number (e.g. 0123456789)" required>
-                </div>
-                <small class="error-text"><?= $errors['phone']; ?></small>
-            </div>
-
-            <div class="input-group <?= $errors['area'] ? 'error' : '' ?>">
-                <div class="field">
-                    <i class="fas fa-map-marker-alt front-icon"></i>
-                    <input type="text" name="area" id="areaHint" value="<?= htmlspecialchars($_POST['area'] ?? '') ?>" placeholder="Village name" required>
-                </div>
-                <small class="error-text"><?= $errors['area']; ?></small>
-            </div>
-
-            <div class="input-group <?= $errors['password'] ? 'error' : '' ?>">
-                <div class="field">
-                    <i class="fas fa-lock front-icon"></i>
-                    <input type="password" name="password" placeholder="Password" required>
-                </div>
-                <small class="error-text"><?= $errors['password']; ?></small>
-            </div>
-
-            <div class="input-group <?= $errors['confirm_password'] ? 'error' : '' ?>">
-                <div class="field">
-                    <i class="fas fa-lock front-icon"></i>
-                    <input type="password" name="confirm_password" placeholder="Confirm Password" required>
-                </div>
-                <small class="error-text"><?= $errors['confirm_password']; ?></small>
-            </div>
 
             <button type="submit" name="register">Register</button>
             <a href="<?php $dashboardPages = [

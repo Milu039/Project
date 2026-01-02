@@ -11,7 +11,7 @@
     z-index:1000;
 ">
     <div>
-        © 2025 Digital Village Dashboard Management (DVDM)
+        © 2026 Digital Village Dashboard Management (DVDM)
         <span style="margin:0 8px;">|</span>
         All Rights Reserved.
     </div>

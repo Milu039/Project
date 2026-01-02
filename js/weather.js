@@ -1,8 +1,9 @@
 async function loadWeather() {
     const dashboard = document.getElementById("dashboard");
-    const villageId = dashboard.dataset.village || 0;
+    const areaType = dashboard.dataset.areaType || "0";
+    const areaId = dashboard.dataset.areaId || 0;
 
-    const res = await fetch(`weather_api.php?village_id=${villageId}`);
+    const res = await fetch(`weather_api.php?area_type=${areaType}&area_id=${areaId}`);
     const data = await res.json();
 
     const codeIcons = {0:"☀️",1:"🌤️",2:"⛅",3:"☁️",61:"🌧️",95:"⛈️"};

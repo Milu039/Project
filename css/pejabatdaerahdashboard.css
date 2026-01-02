@@ -1,81 +1,58 @@
-/* ===============================
-   DASHBOARD LAYOUT ONLY
-   =============================== */
+html {
+    overflow-anchor: none;
+    /* FIX: prevent scroll jump caused by Chart.js */
+}
 
 body.dashboard-page {
     display: block;
-    background: #f1f5f9;
+    margin: 0;
     color: #0f172a;
     font-family: 'Segoe UI', Arial, sans-serif;
-}
-
-/* ===============================
-   MAIN LAYOUT
-   =============================== */
-
-.dashboard-container {
-    display: flex;
     min-height: 100vh;
+
+    /* 1. Base light color */
+    background-color: #f1f5f9;
+
+    /* 2. THE GLOW: Blue and Purple orbs behind the glass */
+    background-image:
+        radial-gradient(circle at 90% 0%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 0% 100%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+
+    /* Keeps the glow fixed when you scroll */
+    background-attachment: fixed;
 }
 
 /* ===============================
-   SIDEBAR
+   SECTIONS / CARDS (GLASS EFFECT)
    =============================== */
 
-.sidebar .logo {
-    padding: 22px;
-    font-size: 22px;
-    font-weight: bold;
-    text-align: center;
-    background: rgba(0, 0, 0, 0.25);
-    letter-spacing: 1px;
-}
+/* THIS IS THE FIXED PART */
+.section,
+.chart-box,
+.incident-details-col,
+.image-wrapper,
+.incident-image-col {
+    /* 1. Semi-transparent white */
+    background: rgba(255, 255, 255, 0.85);
 
-.sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 6px 14px;
-    padding: 12px 18px;
-    color: #e5e7eb;
-    text-decoration: none;
-    border-radius: 14px;
-    font-size: 15px;
-    transition: 0.2s ease;
-}
+    /* 2. The Blur Magic (Frosted Glass) */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 
-.sidebar a:hover,
-.sidebar a.active {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-}
+    /* 3. Soft white border */
+    border: 1px solid rgba(255, 255, 255, 0.6);
 
-.sidebar i {
-    font-size: 16px;
-}
+    /* 4. Soft floating shadow */
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
 
-/* ===============================
-   CONTENT AREA
-   =============================== */
-
-.right-content {
-    margin-left: 260px;
-    width: calc(100% - 260px);
-    padding: 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-}
-
-/* ===============================
-   SECTIONS / CARDS
-   =============================== */
-
-.section {
-    background: white;
-    padding: 28px;
     border-radius: 20px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+    padding: 28px;
+    /* Default padding */
+}
+
+/* Ensure chart box uses specific padding if needed */
+.chart-box {
+    padding: 24px;
 }
 
 /* ===============================
@@ -89,59 +66,6 @@ body.dashboard-page {
 }
 
 /* ===============================
-   KPI CARDS (OVERVIEW)
-   =============================== */
-
-.top-stats {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 22px;
-}
-
-.stat-box {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 26px;
-    border-radius: 20px;
-    color: white;
-}
-
-.stat-box i {
-    font-size: 30px;
-    opacity: 0.9;
-}
-
-.stat-box span {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.stat-box b {
-    font-size: 34px;
-    font-weight: bold;
-}
-
-/* KPI COLORS */
-.stat-box.blue {
-    background: linear-gradient(135deg, #2563eb, #1e40af);
-}
-
-.stat-box.orange {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-box.red {
-    background: linear-gradient(135deg, #dc2626, #991b1b);
-}
-
-.stat-box.green {
-    background: linear-gradient(135deg, #16a34a, #15803d);
-}
-
-/* ===============================
    CHARTS
    =============================== */
 
@@ -151,127 +75,18 @@ body.dashboard-page {
     gap: 26px;
 }
 
-.chart-box {
-    background: white;
-    padding: 22px;
-    border-radius: 20px;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.1);
-}
-
 .chart-box h3 {
     margin-bottom: 16px;
     font-size: 18px;
 }
 
-/* ===============================
-   FILTER BAR (SEARCH + FILTER)
-   =============================== */
-
-.filter-bar {
-    display: flex;
-    gap: 14px;
-    margin-bottom: 18px;
-}
-
-.filter-bar input,
-.filter-bar select {
-    padding: 10px 14px;
-    border-radius: 12px;
-    border: 1px solid #cbd5e1;
-    font-size: 14px;
-    outline: none;
-}
-
-.filter-bar input {
-    width: 280px;
+.chart-box canvas {
+    width: 50% !important;
+    height: auto !important;
 }
 
 /* ===============================
-   TABLES
-   =============================== */
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    border-radius: 16px;
-    overflow: hidden;
-}
-
-th {
-    background: #2563eb;
-    color: white;
-    padding: 14px;
-    text-align: left;
-    font-weight: 600;
-}
-
-td {
-    padding: 14px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-tr:hover {
-    background: #f8fafc;
-}
-
-/* ===============================
-   INCIDENT ITEMS
-   =============================== */
-
-.report-item {
-    background: white;
-    padding: 18px;
-    border-radius: 16px;
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.1);
-    margin-bottom: 14px;
-}
-
-/* ===============================
-   BUTTONS
-   =============================== */
-
-.btn {
-    padding: 8px 18px;
-    border-radius: 999px;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.btn-view {
-    background: #2563eb;
-    color: white;
-}
-
-.btn-close {
-    background: #dc2626;
-    color: white;
-}
-
-.btn:hover {
-    opacity: 0.9;
-}
-
-.badge {
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.badge-closed {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.urgency-critical {
-    color: #dc2626;
-    font-weight: bold;
-}
-
-/* ===============================
-   INCIDENT TABLE HEADER
+   INCIDENT TABLE HEADER & ACTIONS
    =============================== */
 
 .section-header {
@@ -287,13 +102,11 @@ tr:hover {
     margin: 0;
 }
 
-/* Right-side buttons */
 .table-actions {
     display: flex;
     gap: 10px;
 }
 
-/* Export button */
 .btn-export {
     background: #16a34a;
     color: white;
@@ -307,7 +120,6 @@ tr:hover {
     background: #15803d;
 }
 
-/* Print button */
 .btn-print {
     background: #2563eb;
     color: white;
@@ -326,15 +138,266 @@ tr:hover {
    RESPONSIVE
    =============================== */
 
-@media (max-width: 1000px) {
+@media (max-width: 768px) {
     .top-stats {
-        grid-template-columns: repeat(2, 1fr);
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 10px;
     }
 
-    .chart-row {
+    .stat-box {
+        min-width: 120px;
+    }
+}
+
+/* ===============================
+   INCIDENT DETAILS (REVERTED CLEAN VERSION)
+   =============================== */
+
+.incident-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.btn-back {
+    color: #64748b;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.2s;
+}
+
+.btn-back:hover {
+    color: #0f172a;
+}
+
+.incident-card-container {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 40px;
+}
+
+.inc-title {
+    font-size: 32px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 5px 0;
+}
+
+.inc-village {
+    font-size: 16px;
+    color: #64748b;
+    margin: 0;
+    font-weight: 500;
+}
+
+.divider {
+    border: 0;
+    border-top: 1px solid #e2e8f0;
+    margin: 25px 0;
+}
+
+.detail-group {
+    margin-bottom: 20px;
+}
+
+.detail-group label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.desc-text {
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    line-height: 1.6;
+    color: #334155;
+    margin: 0;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* Image Column styles are handled by the shared "Glass Effect" block above */
+/* Just adding content specific styling here */
+
+.image-wrapper {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: white;
+    margin-bottom: 10px;
+}
+
+.image-wrapper img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.img-caption {
+    padding: 8px;
+    font-size: 12px;
+    color: #64748b;
+    background: white;
+    font-weight: 600;
+}
+
+.btn-view-full {
+    font-size: 13px;
+    color: #2563eb;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.no-photo {
+    padding: 60px 20px;
+    color: #94a3b8;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+}
+
+.no-photo i {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.btn-close-large {
+    width: 100%;
+    padding: 15px;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-close-large:hover {
+    background: #b91c1c;
+}
+
+.badge-red {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-orange {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.badge-blue {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-green {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge-gray {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+@media (max-width: 900px) {
+    .incident-card-container {
         grid-template-columns: 1fr;
     }
 }
+
+/* ===============================
+   CRITICAL ALERT BANNER
+   =============================== */
+
+.alert-banner {
+    background: #fef2f2;
+    border: 1px solid #fee2e2;
+    border-left: 5px solid #dc2626;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);
+    animation: pulseAlert 2s infinite;
+}
+
+.alert-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #dc2626;
+    font-weight: 800;
+    font-size: 16px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.alert-item {
+    background: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    color: #7f1d1d;
+    font-size: 14px;
+    border: 1px solid #fecaca;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.alert-item small {
+    color: #991b1b;
+    opacity: 0.8;
+}
+
+.alert-text {
+    display: flex;
+    gap: 6px;
+    /* Spacing between "Flood" "in" "Village" */
+    align-items: center;
+    color: #450a0a;
+}
+
+@keyframes pulseAlert {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.2);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
+}
+
+/* ===============================
+   PRINT MODE
+   =============================== */
 
 @media print {
 
@@ -344,6 +407,11 @@ tr:hover {
     button,
     a {
         display: none !important;
+    }
+
+    .right-content {
+        margin-left: 0;
+        width: 100%;
     }
 
     body {

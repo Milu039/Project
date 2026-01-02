@@ -35,11 +35,11 @@ $_SESSION['user_name']  = $user['name'];
 $_SESSION['user_email'] = $user['email'];
 $_SESSION['role']       = $user['role'];
 if ($user['village_id'] != null) {
-    $_SESSION['village_id']  = $user['village_id'];
+    $_SESSION['area_id']  = $user['village_id'];
 }
 if ($user['subdistrict_id'] != null) {
-    $_SESSION['subdistrct_id']  = $user['subdistrict_id'];
+    $_SESSION['area_id']  = $user['subdistrict_id'];
 }
 if ($user['district_id'] != null) {
-    $_SESSION['district_id']  = $user['district_id'];
+    $_SESSION['area_id']  = $user['district_id'];
 }

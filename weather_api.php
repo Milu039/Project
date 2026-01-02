@@ -1,19 +1,33 @@
 <?php
 require_once('includes/dbconnect.php');
 
-$village_id = isset($_GET['village_id']) ? (int)$_GET['village_id'] : 0;
-$stmt = $conn->prepare("SELECT latitude, longitude FROM tbl_villages WHERE id = ?");
-$stmt->bind_param("i", $village_id);
+$areaType = $_GET['area_type'] ?? '0';
+$areaId   = intval($_GET['area_id'] ?? 0);
+
+$lat = $lng = null;
+
+if($areaType == '0'){ // Village
+    $stmt = $conn->prepare("SELECT latitude, longitude FROM tbl_villages WHERE id=?");
+} elseif($areaType == '1'){ // Subdistrict
+    $stmt = $conn->prepare("SELECT latitude, longitude FROM tbl_subdistricts WHERE id=?");
+} else { // District
+    $stmt = $conn->prepare("SELECT latitude, longitude FROM tbl_districts WHERE id=?");
+}
+
+$stmt->bind_param("i", $areaId);
 $stmt->execute();
-$result = $stmt->get_result();
-$loc = $result->fetch_assoc();
+$stmt->bind_result($lat, $lng);
+$stmt->fetch();
 $stmt->close();
 
-$lat = $loc['latitude'];
-$lon = $loc['longitude'];
+// If lat/lng are missing, provide defaults
+if (!$lat || !$lng) {
+    echo json_encode(["temp"=>"--","code"=>"-1"]);
+    exit;
+}
 
-// fetch from Open‑Meteo
-$url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&current_weather=true";
+// fetch from Open‑Meteo (weather api)
+$url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lng}&current_weather=true";
 
 $response = file_get_contents($url);
 $data = json_decode($response, true);
@@ -26,4 +40,3 @@ if (isset($data['current_weather'])) {
 } else {
     echo json_encode(["temp"=>"--","code"=>"-1"]);
 }
-?>

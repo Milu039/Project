@@ -5,16 +5,7 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 
 $page = $_GET['page'] ?? 'overview';
 
-$village_id = (int)$_SESSION['village_id'];
-
-$stmt = $conn->prepare("SELECT latitude, longitude FROM tbl_villages WHERE id = ?");
-$stmt->bind_param("i", $village_id);
-$stmt->execute();
-$stmt->bind_result($village_lat, $village_lng);
-$stmt->fetch();
-$stmt->close();
-
-$sos_result = $conn->query("SELECT * FROM tbl_sos ORDER BY created_at DESC");
+$area_id = (int)$_SESSION['area_id'];
 
 if (isset($_POST['submit_announcement'])) {
 
@@ -25,7 +16,7 @@ if (isset($_POST['submit_announcement'])) {
     if ($title && $description && $type) {
 
         $stmt = $conn->prepare("SELECT COUNT(*) FROM tbl_announcements WHERE village_id = ? AND created_at >= (NOW() - INTERVAL 5 MINUTE)");
-        $stmt->bind_param("i", $village_id);
+        $stmt->bind_param("i", $area_id);
         $stmt->execute();
         $stmt->bind_result($count);
         $stmt->fetch();
@@ -39,7 +30,7 @@ if (isset($_POST['submit_announcement'])) {
              VALUES (?, ?, ?, ?)"
             );
 
-            $stmt->bind_param("sssi", $title, $description, $type, $village_id);
+            $stmt->bind_param("sssi", $title, $description, $type, $area_id);
 
             if ($stmt->execute()) {
                 $success = "Announcement published successfully.";
@@ -53,6 +44,52 @@ if (isset($_POST['submit_announcement'])) {
         $error = "All fields are required.";
     }
 }
+
+if (isset($_POST['submit_household'])) {
+    $email = trim($_POST['email']);
+    $family_group = trim($_POST['family_group']);
+    $family_member = (int) $_POST['family_members'];
+    $sara = trim($_POST['sara']);
+
+    // Check if email exists in tbl_villagers
+    $check = $conn->prepare("SELECT id FROM tbl_villagers WHERE email = ?");
+    $check->bind_param("s", $email);
+    $check->execute();
+    $check->store_result();
+    $check->bind_result($villager_id);
+    $check->fetch();
+
+    if ($check->num_rows > 0) {
+        // Insert into tbl_households
+        $stmt = $conn->prepare("INSERT INTO tbl_households (villager_id, family_group, family_member, sara) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssis", $villager_id, $family_group, $family_member, $sara);
+
+        if ($stmt->execute()) {
+            // Get the last inserted household ID
+            $household_id = $stmt->insert_id;
+
+            // Update tbl_villagers with household_id
+            $update = $conn->prepare("UPDATE tbl_villagers SET household_id = ? WHERE id = ?");
+            $update->bind_param("ii", $household_id, $villager_id);
+            if ($update->execute()) {
+                $success = "Household added and villager updated successfully!";
+            } else {
+                error_log($update->error);
+                $error = "Household added but failed to update villager";
+            }
+            $update->close();
+        } else {
+            error_log($stmt->error);
+            $error = "Error inserting household";
+        }
+        $stmt->close();
+    } else {
+        $error = "Error: The email does not belong to a registered villager.";
+    }
+
+    $check->close();
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -67,6 +104,7 @@ if (isset($_POST['submit_announcement'])) {
     <link href="css/style.css" rel="stylesheet" type="text/css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 </head>
 
 <body>
@@ -77,11 +115,11 @@ if (isset($_POST['submit_announcement'])) {
     <div class="sidebar">
         <div class="logo">
             <img src="images/icon.png" style="scale: 0.75;" alt="Logo" class="logo-img">
-            <p>DVDM</p>
+            <p>DVMD</p>
         </div>
         <div class="user-info-box">
             <div class="avatar">
-                <a href="" class="avatar-upload" title="Upload Avatar">
+                <a class="avatar-upload" title="Upload Avatar">
                     <i class="fas fa-user"></i>
                 </a>
             </div>
@@ -95,24 +133,28 @@ if (isset($_POST['submit_announcement'])) {
                     ];
                     echo $roleNames[$_SESSION['role']] ?? 'Unknown';
                     ?></div>
-                <div style="font-size: 14px;"><?php echo $_SESSION['user_name']; ?></div>
-                <div style="font-size: 13px;opacity: 0.8;"><?php echo $_SESSION['user_email']; ?></div>
+                <div style="font-size: 14px;"><?php echo htmlspecialchars($_SESSION['user_name']); ?></div>
+                <div style="font-size: 13px;opacity: 0.8;"><?php echo htmlspecialchars($_SESSION['user_email']); ?></div>
             </div>
         </div>
 
         <a class="sidebar-link" href="?page=overview"><i class="fas fa-chart-line"></i> Overview</a>
-        <a class="sidebar-link" href="?page=annoucement"><i class="fas fa-bell"></i> Make Annoucement</a>
-        <a class="sidebar-link" href="?page=incident-map"><i class="fas fa-map"></i> Incident Map</a>
+        <a class="sidebar-link" href="?page=announcement"><i class="fas fa-bell"></i> Make Announcement</a>
+        <a class="sidebar-link" href="?page=map"><i class="fas fa-map"></i> Map</a>
         <a class="sidebar-link" href="?page=history"><i class="fas fa-history"></i> History</a>
         <a class="sidebar-link" href="?page=household-level-record"><i class="fas fa-house"></i> Household-level record</a>
-        <a href="registerpage.php?role=<?= $_SESSION['role'] ?>&id=<?= $_SESSION['village_id'] ?>"><i class="fas fa-user"></i> Register Villager</a>
+        <a href="registerpage.php"><i class="fas fa-user"></i> Register Villager</a>
         <a href="logout.php" onclick="return confirm('Are you sure you want to logout?')"> <i class="fas fa-right-from-bracket"></i> Logout </a>
     </div>
 
     <!--  Right Content -->
     <div class="right-content">
         <?php if ($page === 'overview'): ?>
-            <div id="dashboard" data-village="<?= $_SESSION['village_id'] ?? 0 ?>"></div>
+            <div id="dashboard"
+                data-area-type="<?= $_SESSION['role'] ?>"
+                data-area-id="<?= $_SESSION['area_id'] ?>">
+            </div>
+            <script type="text/javascript" src="js/weather.js"></script>
             <h1>Ketua Kampung Dashboard</h1>
             <!-- Top Stats -->
             <div class="top-stats">
@@ -125,7 +167,7 @@ if (isset($_POST['submit_announcement'])) {
                         <h2 id="villagerCount">
                             <?php
                             $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM tbl_villagers WHERE village_id = ?");
-                            $stmt->bind_param("i", $village_id);
+                            $stmt->bind_param("i", $area_id);
                             $stmt->execute();
                             $result = $stmt->get_result();
                             $row = $result->fetch_assoc();
@@ -153,116 +195,285 @@ if (isset($_POST['submit_announcement'])) {
                 <!-- Incident List -->
                 <div class="report-list active" id="incident">
                     <?php
-                    $urgency1 = "Pending";
-                    $urgency2 = "In Progress";
-
-                    $stmt = $conn->prepare("SELECT * FROM tbl_incidents WHERE village_id = ? AND (urgency_level = ? OR urgency_level = ?) ORDER BY date_created DESC");
-                    $stmt->bind_param("iss", $village_id, $urgency1, $urgency2);
+                    $stmt = $conn->prepare("
+                    SELECT * FROM tbl_incidents 
+                    WHERE village_id = ? 
+                    AND status IN ('Pending', 'In Progress', 'Progressing') 
+                    ORDER BY date_created DESC
+                    ");
+                    $stmt->bind_param("i", $area_id);
                     $stmt->execute();
-                    $inc_result = $stmt->get_result();
-                    $inc_result->data_seek(0);
-                    if ($inc_result->num_rows > 0):
-                        while ($row = $inc_result->fetch_assoc()):
-                            $createdTime = strtotime($row['date_created']);
-                            $isNew = (time() - $createdTime) <= 24 * 60 * 60;
-                            $urgencyClass = '';
-                            switch (strtolower($row['urgency_level'])) {
-                                case 'in progress':
-                                    $urgencyClass = 'urgency-inprogress';
-                                    break;
-                                case 'pending':
-                                    $urgencyClass = 'urgency-pending';
-                                    break;
-                                default:
-                                    $urgencyClass = 'urgency-pending';
-                            }
-
-                            // Fetch villager name
-                            $stmtVillager = $conn->prepare("SELECT name FROM tbl_villagers WHERE id = ?");
-                            $stmtVillager->bind_param("i", $row['villager_id']);
-                            $stmtVillager->execute();
-                            $stmtVillager->bind_result($villagerName);
-                            $stmtVillager->fetch();
-                            $stmtVillager->close();
+                    $resultSet = $stmt->get_result();
                     ?>
-                            <div class="report-item"
-                                data-id="<?= htmlspecialchars($row['id']) ?>"
-                                data-type="<?= htmlspecialchars($row['type']) ?>"
-                                data-description="<?= htmlspecialchars($row['description']) ?>"
-                                data-location="<?= htmlspecialchars($row['location']) ?>"
-                                data-date="<?= $row['date_created'] ?>"
-                                data-image="<?= !empty($row['image']) ? htmlspecialchars($row['image']) : 'images/no-image.png' ?>"
-                                data-villager="<?= htmlspecialchars($villagerName) ?>"
-                                data-status="<?= strtolower($row['urgency_level']) ?>">
-                                <img src="<?= !empty($row['image']) ? htmlspecialchars($row['image']) : 'images/no-image.png' ?>" alt="Incident Image">
-                                <div class="report-content">
-                                    <p><strong>Type:</strong> <?= htmlspecialchars($row['type']) ?><?php if ($isNew) echo ' <span class="new-badge">NEW</span>'; ?></p>
-                                    <p><strong>Description:</strong> <?= htmlspecialchars($row['description']) ?></p>
-                                    <p><strong>Location:</strong> <?= htmlspecialchars($row['location']) ?></p>
-                                    <p><small>Reported at: <?= $row['date_created'] ?></small></p>
-                                </div>
-                                <div class="urgency-badge <?= $urgencyClass ?>"><?= ucfirst($row['urgency_level']) ?></div>
-                            </div>
-                        <?php endwhile;
-                    else: ?>
-                        <div class="report-item">No incidents found.</div>
-                    <?php endif; ?>
+                    <table>
+                        <tr>
+                            <th>Type</th>
+                            <th>Location</th>
+                            <th>Urgency Level</th>
+                            <th>Date Reported</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                        <?php if ($resultSet->num_rows > 0):
+                            while ($result = $resultSet->fetch_assoc()):
+                                $createdTime = strtotime($result['date_created']);
+                                $isNew = (time() - $createdTime) <= 24 * 60 * 60;
+                        ?>
+                                <tr>
+                                    <td style="text-align: left;"><?= htmlspecialchars($result['type']) ?><?php if ($isNew) echo ' <span class="new-badge">NEW</span>'; ?></td>
+                                    <td><?= htmlspecialchars($result['latitude']) ?>, <?= htmlspecialchars($result['longitude']) ?></td>
+
+                                    <td>
+                                        <span class="badge urgency <?= strtolower($result['urgency_level']) ?>">
+                                            <?= htmlspecialchars($result['urgency_level']) ?>
+                                        </span>
+                                    </td>
+
+                                    <td><?= date('d M Y', strtotime($result['date_created'])) ?></td>
+
+                                    <td>
+                                        <span class="badge status <?= strtolower(str_replace(' ', '-', $result['status'])) ?>">
+                                            <?= htmlspecialchars($result['status']) ?>
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <a class="btn btn-view" href="?page=incident_view&id=<?= $result['id'] ?>">View</a>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <?= "<tr><td colspan='6' style='text-align:center;'>No reports found.</td></tr>"; ?>
+                        <?php endif; ?>
+                    </table>
                 </div>
 
-                <!-- Modal HTML -->
-                <div id="incidentModal" class="modal">
-                    <div class="modal-content">
-                        <span class="close">&times;</span>
-                        <h2 id="modalType"></h2>
-                        <p><strong>Description:</strong> <span id="modalDescription"></span></p>
-                        <p><strong>Location:</strong> <span id="modalLocation"></span></p>
-                        <p><strong>Posted by:</strong> <span id="modalVillager"></span></p>
-                        <p><strong>Reported At:</strong> <span id="modalDate"></span></p>
-                        <img id="modalImage" src="" alt="Incident Image" style="width:100%; max-height:300px; object-fit:cover;">
-                        <div class="modal-buttons">
-                            <button id="approveBtn" class="approve-btn">Approve</button>
-                            <button id="rejectBtn" class="reject-btn">Reject</button>
-                        </div>
-                    </div>
-                </div>
                 <!-- SOS List -->
                 <div class="report-list" id="sos">
                     <?php
-                    $sos_result->data_seek(0); // reset pointer if needed
-                    if ($sos_result->num_rows > 0):
-                        while ($row = $sos_result->fetch_assoc()):
+                    $stmt = $conn->prepare("
+                    SELECT * FROM tbl_sos 
+                    WHERE village_id = ? 
+                    AND status IN ('Pending', 'In Progress', 'Progressing') 
+                    ORDER BY created_at DESC
+                    ");
+                    $stmt->bind_param('i', $area_id);
+                    $stmt->execute();
+                    $resultSet = $stmt->get_result()
                     ?>
-                            <div class="report-item">
-                                <?= htmlspecialchars($row['message']) ?><br>
-                                <small><?= $row['created_at'] ?></small>
-                            </div>
-                        <?php endwhile;
-                    else: ?>
-                        <div class="report-item">No SOS alerts.</div>
-                    <?php endif; ?>
+                    <table>
+                        <tr>
+                            <th>Type</th>
+                            <th>Location</th>
+                            <th>Urgency Level</th>
+                            <th>Date Reported</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                        <?php if ($resultSet->num_rows > 0):
+                            while ($result = $resultSet->fetch_assoc()):
+                                $createdTime = strtotime($result['created_at']);
+                                $isNew = (time() - $createdTime) <= 24 * 60 * 60;
+                        ?>
+                                <tr>
+                                    <td style="text-align: left;"><?= htmlspecialchars($result['type']) ?><?php if ($isNew) echo ' <span class="new-badge">NEW</span>'; ?></td>
+                                    <td><?= htmlspecialchars($result['latitude']) ?>, <?= htmlspecialchars($result['longitude']) ?></td>
+
+                                    <td>
+                                        <span class="badge urgency <?= strtolower($result['urgency_level']) ?>">
+                                            <?= htmlspecialchars($result['urgency_level']) ?>
+                                        </span>
+                                    </td>
+
+                                    <td><?= date('d M Y', strtotime($result['created_at'])) ?></td>
+
+                                    <td>
+                                        <span class="badge status <?= strtolower(str_replace(' ', '-', $result['status'])) ?>">
+                                            <?= htmlspecialchars($result['status']) ?>
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <a class="btn btn-view" href="?page=sos_view&id=<?= $result['id'] ?>">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <?= "<tr><td colspan='6' style='text-align:center;'>No reports found.</td></tr>"; ?>
+                        <?php endif; ?>
+                    </table>
                 </div>
             </div>
-            <script type="text/javascript" src="js/weather.js"></script>
-            <script type="text/javascript" src="js/modal.js"></script>
-            <script>
-                const tabs = document.querySelectorAll('.tab-btn');
-                const lists = document.querySelectorAll('.report-list');
-                tabs.forEach(tab => {
-                    tab.addEventListener('click', () => {
-                        // Remove active class from all tabs
-                        tabs.forEach(t => t.classList.remove('active'));
-                        lists.forEach(list => list.classList.remove('active'));
 
-                        // Activate clicked tab and target list
-                        tab.classList.add('active');
-                        document.getElementById(tab.dataset.target).classList.add('active');
-                    });
-                });
-            </script>
+        <?php elseif ($page === 'incident_view' && isset($_GET['id'])): ?>
+            <?php
+            $incidentId = intval($_GET['id']);
+            $stmt = $conn->prepare("SELECT i.*, v.name FROM tbl_incidents i JOIN tbl_villagers v ON i.villager_id = v.id WHERE i.id = ?");
+            $stmt->bind_param("i", $incidentId);
+            $stmt->execute();
+            $incident = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$incident) {
+                echo "<div class='section'><p>Incident not found.</p> <a href='?page=overview' class='btn'>Back</a></div>";
+                return;
+            }
+            ?>
+
+            <section class="section">
+                <div class="header-row">
+                    <a href="?page=overview" class="btn-back"><i class="fas fa-arrow-left"></i> Back</a>
+                    <div class="header-meta">
+                        <span class="badge urgency <?= strtolower($incident['urgency_level']) ?>">
+                            <i class="fas fa-bell"></i> <?= htmlspecialchars($incident['urgency_level']) ?>
+                        </span>
+                        <span class="badge state <?= strtolower($incident['status']) ?>">
+                            <i class="fas fa-info-circle"></i> <?= htmlspecialchars($incident['status']) ?>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card-container">
+                    <div class="info">
+                        <h1 class="title"><?= htmlspecialchars($incident['type']) ?></h1>
+                        <p class="reporter">
+                            <i class="fas fa-user"></i> <?= htmlspecialchars($incident['name']) ?>
+                        </p>
+                        <hr class="divider">
+                        <div class="detail-group">
+                            <label>Description</label>
+                            <p class="desc-text"><?= nl2br(htmlspecialchars($incident['description'])) ?></p>
+                        </div>
+                        <div class="info-grid">
+                            <div class="detail-group">
+                                <label>Specific Location</label>
+                                <p><?= htmlspecialchars($incident['latitude']) ?>, <?= htmlspecialchars($incident['longitude']) ?></p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Date Reported</label>
+                                <p><?= date("d M Y, h:i A", strtotime($incident['date_created'])) ?></p>
+                            </div>
+                        </div>
+
+                        <?php if ($incident['status'] !== 'In Progress' && $incident['status'] !== 'Progressing'): ?>
+                            <div style="margin-top: 30px;">
+                                <form method="POST" action="management/incident/update_incident.php">
+                                    <input type="hidden" name="role" value="<?= $_SESSION['role'] ?>">
+                                    <input type="hidden" name="id" value="<?= $incident['id'] ?>">
+                                    <button type="submit" name="incident_action" value="approve" class="btn btn-approve">
+                                        <i class="fas fa-check-circle"></i> Approve
+                                    </button>
+
+                                    <button type="submit" name="incident_action" value="reject" class="btn btn-reject">
+                                        <i class="fas fa-times-circle"></i> Reject
+                                    </button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="image-col">
+                        <?php if (!empty($incident['image'])): ?>
+                            <div class="image-wrapper">
+                                <img src="uploads/<?= htmlspecialchars($incident['image']) ?>" alt="Evidence Photo">
+                                <div class="img-caption">Evidence Photo</div>
+                            </div>
+                        <?php else: ?>
+                            <div class="no-photo"><i class="fas fa-camera-slash"></i>
+                                <p>No photo provided</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
+
+        <?php elseif ($page === 'sos_view' && isset($_GET['id'])): ?>
+            <?php
+            $sosId = intval($_GET['id']);
+            $stmt = $conn->prepare("SELECT so.*, v.name FROM tbl_sos so JOIN tbl_villagers v ON so.villager_id = v.id WHERE so.id = ?");
+            $stmt->bind_param("i", $sosId);
+            $stmt->execute();
+            $sos = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$sos) {
+                echo "<div class='section'><p>SOS not found.</p> <a href='?page=overview' class='btn'>Back</a></div>";
+                return;
+            }
+            ?>
+
+            <section class="section">
+                <div class="header-row">
+                    <a href="?page=overview" class="btn-back"><i class="fas fa-arrow-left"></i> Back</a>
+                    <div class="header-meta">
+                        <span class="badge urgency <?= strtolower($sos['urgency_level']) ?>">
+                            <i class="fas fa-bell"></i> <?= htmlspecialchars($sos['urgency_level']) ?>
+                        </span>
+                        <span class="badge state <?= strtolower($sos['status']) ?>">
+                            <i class="fas fa-info-circle"></i> <?= htmlspecialchars($sos['status']) ?>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card-container">
+                    <div class="info">
+                        <h1 class="title"><?= htmlspecialchars($sos['type']) ?></h1>
+                        <p class="reporter">
+                            <i class="fas fa-user"></i> <?= htmlspecialchars($sos['name']) ?>
+                        </p>
+                        <hr class="divider">
+                        <div class="detail-group">
+                            <label>Description</label>
+                            <p class="desc-text"><?= nl2br(htmlspecialchars($sos['description'])) ?></p>
+                        </div>
+                        <div class="info-grid">
+                            <div class="detail-group">
+                                <label>Specific Location</label>
+                                <p><?= htmlspecialchars($sos['latitude']) ?>, <?= htmlspecialchars($sos['longitude']) ?></p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Date Reported</label>
+                                <p><?= date("d M Y, h:i A", strtotime($sos['created_at'])) ?></p>
+                            </div>
+                        </div>
+
+                        <?php if ($sos['status'] !== 'In Progress' && $sos['status'] !== 'Progressing'): ?>
+                            <div style="margin-top: 30px;">
+                                <form method="POST" action="management/sos/update_sos.php">
+                                    <input type="hidden" name="role" value="<?= $_SESSION['role'] ?>">
+                                    <input type="hidden" name="id" value="<?= $sos['id'] ?>">
+                                    <button type="submit" name="sos_action" value="approve" class="btn btn-approve">
+                                        <i class="fas fa-check-circle"></i> Approve
+                                    </button>
+
+                                    <button type="submit" name="sos_action" value="reject" class="btn btn-reject">
+                                        <i class="fas fa-times-circle"></i> Reject
+                                    </button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="image-col">
+                        <?php if (!empty($sos['image'])): ?>
+                            <div class="image-wrapper">
+                                <img src="uploads/<?= htmlspecialchars($sos['image']) ?>" alt="Evidence Photo">
+                                <div class="img-caption">Evidence Photo</div>
+                            </div>
+                        <?php else: ?>
+                            <div class="no-photo"><i class="fas fa-camera-slash"></i>
+                                <p>No photo provided</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
         <?php endif ?>
 
-        <?php if ($page == 'annoucement'): ?>
-            <h1>Make Annoucement</h1>
+        <?php if ($page == 'announcement'): ?>
+            <h1>Make Announcement</h1>
             <?php if (!empty($success)): ?>
                 <div class="alert success">
                     <i class="fas fa-check-circle"></i>
@@ -304,142 +515,396 @@ if (isset($_POST['submit_announcement'])) {
             </form>
         <?php endif ?>
 
-        <?php if ($page == 'incident-map'): ?>
-            <h1>Incident Map</h1>
+        <?php if ($page == 'map'): ?>
+            <h1>Report Map</h1>
             <div id="map" style="height:500px; width:100%; border-radius:10px;"></div>
-            <script>
-                document.addEventListener("DOMContentLoaded", function() {
-                    // create map
-                    const villageLat = <?php echo $village_lat ?? 4.2105; ?>;
-                    const villageLng = <?php echo $village_lng ?? 101.9758; ?>;
-                    const map = L.map('map').setView([villageLat, villageLng], 17); // ketau 17, penghulu 14, pejabat 8
-
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap contributors'
-                    }).addTo(map);
-
-                    // colored alert level
-                    const redIcon = new L.Icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34],
-                        shadowSize: [41, 41]
-                    });
-
-                    const yellowIcon = new L.Icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-yellow.png',
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34],
-                        shadowSize: [41, 41]
-                    });
-
-                    // incident current no latitude and longitude
-                    const incidents = [{
-                            type: "Flood",
-                            level: "critical",
-                            lat: 3.1390,
-                            lng: 101.6869,
-                            description: "Severe flood reported near river"
-                        },
-                        {
-                            type: "Fire",
-                            level: "pending",
-                            lat: 5.4141,
-                            lng: 100.3288,
-                            description: "Fire reported, awaiting verification"
-                        },
-                        {
-                            type: "Landslide",
-                            level: "critical",
-                            lat: 2.1896,
-                            lng: 102.2501,
-                            description: "Road completely blocked"
-                        }
-                    ];
-
-                    // pin or markers
-                    incidents.forEach(i => {
-
-                        let icon = yellowIcon;
-                        if (i.level === "critical") icon = redIcon;
-
-                        L.marker([i.lat, i.lng], {
-                                icon
-                            })
-                            .addTo(map)
-                            .bindPopup(`
-                <strong>${i.type}</strong><br>
-                Status: <b>${i.level.toUpperCase()}</b><br>
-                ${i.description}
-            `);
-                    });
-                    setTimeout(() => {
-                        map.invalidateSize();
-                    }, 300);
-
-                });
-            </script>
+            <script src="js/reports.js"></script>
         <?php endif ?>
 
         <?php if ($page == 'history'): ?>
-            <h1>Incident History</h1>
-            <!-- Incident List -->
-            <div class="report-list active" id="incident">
-                <?php
-                $urgency1 = "Reject";
-                $urgency2 = "Resolved";
-
-                $stmt = $conn->prepare("SELECT * FROM tbl_incidents WHERE village_id = ? AND (urgency_level = ? OR urgency_level = ?) ORDER BY date_created DESC");
-                $stmt->bind_param("iss", $village_id, $urgency1, $urgency2);
-                $stmt->execute();
-                $inc_result = $stmt->get_result();
-
-                $inc_result->data_seek(0);
-                if ($inc_result->num_rows > 0):
-                    while ($row = $inc_result->fetch_assoc()):
-                        $urgencyClass = '';
-                        switch (strtolower($row['urgency_level'])) {
-                            case 'reject':
-                                $urgencyClass = 'urgency-reject';
-                                break;
-                            case 'resolved':
-                                $urgencyClass = 'urgency-resolved';
-                                break;
-                            default:
-                                $urgencyClass = 'urgency-pending';
-                        }
-                ?>
-                        <div class="report-item">
-                            <img src="<?= !empty($row['image']) ? htmlspecialchars($row['image']) : 'images/no-image.png' ?>" alt="Incident Image">
-                            <div class="report-content">
-                                <p><strong>Type:</strong> <?= htmlspecialchars($row['type']) ?></p>
-                                <p><strong>Description:</strong> <?= htmlspecialchars($row['description']) ?></p>
-                                <p><strong>Location:</strong> <?= htmlspecialchars($row['location']) ?></p>
-                                <p><small>Reported at: <?= $row['date_created'] ?></small></p>
-                            </div>
-                            <div class="urgency-badge <?= $urgencyClass ?>"><?= ucfirst($row['urgency_level']) ?></div>
-                        </div>
+            <h1>Report History</h1>
+            <div class="reports">
+                <div class="report-tabs">
+                    <button class="tab-btn active" data-target="incident">Incident Report</button>
+                    <button class="tab-btn" data-target="sos">SOS Report</button>
+                </div>
+                <!-- Incident List -->
+                <div class="report-list active" id="incident">
                     <?php
-                    endwhile;
-                else: ?>
-                    <div class="report-item">No incidents found.</div>
-                <?php endif; ?>
+                    $stmt = $conn->prepare("
+                    SELECT * FROM tbl_incidents 
+                    WHERE village_id = ? 
+                    AND status IN ('Resolved', 'Reject') 
+                    ORDER BY date_created DESC
+                    ");
+                    $stmt->bind_param('i', $area_id);
+                    $stmt->execute();
+                    $resultSet = $stmt->get_result();
+                    ?>
+                    <table>
+                        <tr>
+                            <th>Type</th>
+                            <th>Location</th>
+                            <th>Urgency Level</th>
+                            <th>Date Reported</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                        <?php if ($resultSet->num_rows > 0):
+                            while ($result = $resultSet->fetch_assoc()):
+                        ?>
+                                <tr>
+                                    <td style="text-align: left;"><?= htmlspecialchars($result['type']) ?></td>
+                                    <td><?= htmlspecialchars($result['latitude']) ?>, <?= htmlspecialchars($result['longitude']) ?></td>
+
+                                    <td>
+                                        <span class="badge urgency <?= strtolower($result['urgency_level']) ?>">
+                                            <?= htmlspecialchars($result['urgency_level']) ?>
+                                        </span>
+                                    </td>
+
+                                    <td><?= date('d M Y', strtotime($result['date_created'])) ?></td>
+
+                                    <td>
+                                        <span class="badge status <?= strtolower(str_replace(' ', '-', $result['status'])) ?>">
+                                            <?= htmlspecialchars($result['status']) ?>
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <a class="btn btn-view" href="?page=incident_history&id=<?= $result['id'] ?>">View</a>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <?= "<tr><td colspan='6' style='text-align:center;'>No reports found.</td></tr>"; ?>
+                        <?php endif; ?>
+                    </table>
+                </div>
+
+                <!-- SOS List -->
+                <div class="report-list" id="sos">
+                    <?php
+                    $stmt = $conn->prepare("
+                    SELECT * FROM tbl_sos 
+                    WHERE village_id = ? 
+                    AND status IN ('Resolved', 'Reject') 
+                    ORDER BY created_at DESC
+                    ");
+                    $stmt->bind_param('i', $area_id);
+                    $stmt->execute();
+                    $resultSet = $stmt->get_result();
+                    ?>
+                    <table>
+                        <tr>
+                            <th>Type</th>
+                            <th>Location</th>
+                            <th>Urgency Level</th>
+                            <th>Date Reported</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                        <?php if ($resultSet->num_rows > 0):
+                            while ($result = $resultSet->fetch_assoc()):
+                        ?>
+                                <tr>
+                                    <td style="text-align: left;"><?= htmlspecialchars($result['type']) ?></td>
+                                    <td><?= htmlspecialchars($result['latitude']) ?>, <?= htmlspecialchars($result['longitude']) ?></td>
+
+                                    <td>
+                                        <span class="badge urgency <?= strtolower($result['urgency_level']) ?>">
+                                            <?= htmlspecialchars($result['urgency_level']) ?>
+                                        </span>
+                                    </td>
+
+                                    <td><?= date('d M Y', strtotime($result['created_at'])) ?></td>
+
+                                    <td>
+                                        <span class="badge status <?= strtolower(str_replace(' ', '-', $result['status'])) ?>">
+                                            <?= htmlspecialchars($result['status']) ?>
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <a class="btn btn-view" href="?page=sos_history&id=<?= $result['id'] ?>">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <?= "<tr><td colspan='6' style='text-align:center;'>No reports found.</td></tr>"; ?>
+                        <?php endif; ?>
+                    </table>
+                </div>
             </div>
 
+        <?php elseif ($page === 'incident_history' && isset($_GET['id'])): ?>
+            <?php
+            $incidentId = intval($_GET['id']);
+            $stmt = $conn->prepare("
+            SELECT i.*, v.name
+                FROM tbl_incidents i
+                JOIN tbl_villagers v ON i.villager_id = v.id
+                WHERE i.id = ?
+                ");
+            $stmt->bind_param('i', $incidentId);
+            $stmt->execute();
+            $incident = $stmt->get_result()->fetch_assoc();
 
+            if (!$incident) {
+                echo "<div class='section'><p>Incident not found.</p> <a href='?page=history' class='btn'>Back</a></div>";
+                return;
+            }
+            ?>
+
+            <section class="section">
+                <div class="header-row">
+                    <a href="?page=history" class="btn-back"><i class="fas fa-arrow-left"></i> Back</a>
+                    <div class="header-meta">
+                        <span class="badge urgency <?= strtolower($incident['urgency_level']) ?>">
+                            <i class="fas fa-bell"></i> <?= htmlspecialchars($incident['urgency_level']) ?>
+                        </span>
+                        <span class="badge state <?= strtolower($incident['status']) ?>">
+                            <i class="fas fa-info-circle"></i> <?= htmlspecialchars($incident['status']) ?>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card-container">
+                    <div class="info">
+                        <h1 class="title"><?= htmlspecialchars($incident['type']) ?></h1>
+                        <p class="reporter">
+                            <i class="fas fa-user"></i> <?= htmlspecialchars($incident['name']) ?>
+                        </p>
+                        <hr class="divider">
+                        <div class="detail-group">
+                            <label>Description</label>
+                            <p class="desc-text"><?= nl2br(htmlspecialchars($incident['description'])) ?></p>
+                        </div>
+                        <div class="info-grid">
+                            <div class="detail-group">
+                                <label>Specific Location</label>
+                                <p><?= htmlspecialchars($incident['latitude']) ?>, <?= htmlspecialchars($incident['longitude']) ?></p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Date Reported</label>
+                                <p><?= date("d M Y, h:i A", strtotime($incident['date_created'])) ?></p>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 30px;">
+                            <form method="POST" action="management/incident/delete_incident.php">
+                                <input type="hidden" name="role" value="<?= $_SESSION['role'] ?>">
+                                <input type="hidden" name="id" value="<?= $incident['id'] ?>">
+                                <button type="submit" name="incident_action" value="delete" class="btn btn-delete">
+                                    <i class="fas fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="image-col">
+                        <?php if (!empty($incident['image'])): ?>
+                            <div class="image-wrapper">
+                                <img src="uploads/<?= htmlspecialchars($incident['image']) ?>" alt="Evidence Photo">
+                                <div class="img-caption">Evidence Photo</div>
+                            </div>
+                        <?php else: ?>
+                            <div class="no-photo"><i class="fas fa-camera-slash"></i>
+                                <p>No photo provided</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
+
+        <?php elseif ($page === 'sos_history' && isset($_GET['id'])): ?>
+            <?php
+            $sosId = intval($_GET['id']);
+            $stmt = $conn->prepare("SELECT s.*, v.name
+                FROM tbl_sos s
+                JOIN tbl_villagers v ON s.villager_id = v.id
+                WHERE s.id = ?");
+            $stmt->bind_param('i', $sosId);
+            $stmt->execute();
+            $sos = $stmt->get_result()->fetch_assoc();
+
+            if (!$sos) {
+                echo "<div class='section'><p>SOS not found.</p> <a href='?page=history' class='btn'>Back</a></div>";
+                return;
+            }
+            ?>
+
+            <section class="section">
+                <div class="header-row">
+                    <a href="?page=history" class="btn-back"><i class="fas fa-arrow-left"></i> Back</a>
+                    <div class="header-meta">
+                        <span class="badge urgency <?= strtolower($sos['urgency_level']) ?>">
+                            <i class="fas fa-bell"></i> <?= htmlspecialchars($sos['urgency_level']) ?>
+                        </span>
+                        <span class="badge state <?= strtolower($sos['status']) ?>">
+                            <i class="fas fa-info-circle"></i> <?= htmlspecialchars($sos['status']) ?>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card-container">
+                    <div class="info">
+                        <h1 class="title"><?= htmlspecialchars($sos['type']) ?></h1>
+                        <p class="reporter">
+                            <i class="fas fa-user"></i> <?= htmlspecialchars($sos['name']) ?>
+                        </p>
+                        <hr class="divider">
+                        <div class="detail-group">
+                            <label>Description</label>
+                            <p class="desc-text"><?= nl2br(htmlspecialchars($sos['description'])) ?></p>
+                        </div>
+                        <div class="info-grid">
+                            <div class="detail-group">
+                                <label>Specific Location</label>
+                                <p><?= htmlspecialchars($sos['latitude']) ?>, <?= htmlspecialchars($sos['longitude']) ?></p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Date Reported</label>
+                                <p><?= date("d M Y, h:i A", strtotime($sos['created_at'])) ?></p>
+                            </div>
+                        </div>
+
+                        <?php if ($sos['status'] !== 'In Progress' && $sos['status'] !== 'Progressing'): ?>
+                            <div style="margin-top: 30px;">
+                                <form method="POST" action="management/sos/delete_sos.php">
+                                    <input type="hidden" name="role" value="<?= $_SESSION['role'] ?>">
+                                    <input type="hidden" name="id" value="<?= $sos['id'] ?>">
+                                    <button type="submit" name="incident_action" value="delete" class="btn btn-delete">
+                                        <i class="fas fa-trash-can"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="image-col">
+                        <?php if (!empty($sos['image'])): ?>
+                            <div class="image-wrapper">
+                                <img src="uploads/<?= htmlspecialchars($sos['image']) ?>" alt="Evidence Photo">
+                                <div class="img-caption">Evidence Photo</div>
+                            </div>
+                        <?php else: ?>
+                            <div class="no-photo"><i class="fas fa-camera-slash"></i>
+                                <p>No photo provided</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
         <?php endif ?>
 
         <?php if ($page == 'household-level-record'): ?>
-            <h1></h1>
+            <h1>Household records</h1>
+            <a href="?page=inserthousehold" class="btn btn-insert" style="width:100px;text-align:center;">Insert</a>
+            <?php
+            $stmt = $conn->prepare("
+                    SELECT h.*, v.name, v.address FROM tbl_households h
+                    JOIN tbl_villagers v ON h.villager_id = v.id
+                    ");
+            $stmt->execute();
+            $resultSet = $stmt->get_result();
+            ?>
+            <table>
+                <tr>
+                    <th>Villager's Name</th>
+                    <th>Family Group</th>
+                    <th>Family Member</th>
+                    <th>Address</th>
+                    <th>SARA</th>
+                </tr>
+                <?php if ($resultSet->num_rows > 0):
+                    while ($result = $resultSet->fetch_assoc()):
+                ?>
+                        <tr>
+                            <td style="text-align: left;"><?= htmlspecialchars($result['name']) ?></td>
+                            <td><?= htmlspecialchars($result['family_group']) ?></td>
+                            <td><?= htmlspecialchars($result['family_member']) ?></td>
+                            <td><?= htmlspecialchars($result['address']) ?></td>
+                            <td><?= htmlspecialchars($result['sara']) ?></td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <?= "<tr><td colspan='6' style='text-align:center;'>No reports found.</td></tr>"; ?>
+                <?php endif; ?>
+            </table>
+
+        <?php elseif ($page === 'inserthousehold'): ?>
+            <a href="?page=household-level-record" class="btn-back"><i class="fas fa-arrow-left"></i> Back</a>
+            <h1>Insert Household Records</h1>
+            <?php if (!empty($success)): ?>
+                <div class="alert success">
+                    <i class="fas fa-check-circle"></i>
+                    <?= $success ?>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($error)): ?>
+                <div class="alert error">
+                    <i class="fas fa-times-circle"></i>
+                    <?= $error ?>
+                </div>
+            <?php endif; ?>
+            <form method="post" class="household-form" action="">
+                <!-- EMAIL -->
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" required
+                        placeholder="Enter villager's email">
+                </div>
+
+                <!-- FAMILY GROUP -->
+                <div class="form-group">
+                    <label>Family Group</label>
+                    <select name="family_group" required>
+                        <option value="">-- Select Family Group --</option>
+                        <option value="B40">B40</option>
+                        <option value="M40">M40</option>
+                        <option value="T20">T20</option>
+                    </select>
+                </div>
+
+                <!-- FAMILY MEMBERS -->
+                <div class="form-group">
+                    <label>Number of Family Members</label>
+                    <input type="number" name="family_members" min="1" required
+                        placeholder="Enter number of family members">
+                </div>
+
+                <!-- SARA -->
+                <div class="form-group">
+                    <label>SARA</label>
+                    <input type="text" name="sara" required
+                        placeholder="Enter SARA information">
+                </div>
+
+                <!-- SUBMIT -->
+                <button type="submit" name="submit_household">Submit Household</button>
+            </form>
         <?php endif ?>
     </div>
     <?php include_once('includes/footer.php'); ?>
     <script type="text/javascript" src="js/sidebar.js"></script>
+    <script>
+        const tabs = document.querySelectorAll('.tab-btn');
+        const lists = document.querySelectorAll('.report-list');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                lists.forEach(list => list.classList.remove('active'));
 
+                // Activate clicked tab and target list
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.target).classList.add('active');
+            });
+        });
+    </script>
 </body>
 
 </html>

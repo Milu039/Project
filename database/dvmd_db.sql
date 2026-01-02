@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 31, 2025 at 04:53 AM
+-- Generation Time: Jan 02, 2026 at 03:58 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -61,7 +61,10 @@ INSERT INTO `tbl_announcements` (`id`, `title`, `message`, `type`, `village_id`,
 (19, 'test', 'test', 'emergency', NULL, '2025-12-31 00:05:10'),
 (20, 'test', 'test', 'emergency', NULL, '2025-12-31 00:05:12'),
 (21, 'test', 'test', 'emergency', NULL, '2025-12-31 00:05:13'),
-(22, 'test', 'test', 'weather', NULL, '2025-12-31 10:11:26');
+(22, 'test', 'test', 'weather', NULL, '2025-12-31 10:11:26'),
+(23, 'test', 'test', 'weather', 3, '2026-01-02 05:01:01'),
+(24, 'test', 'test', 'event', 1, '2026-01-02 09:20:15'),
+(25, 'test', 'test', 'event', 3, '2026-01-02 09:20:15');
 
 -- --------------------------------------------------------
 
@@ -101,6 +104,27 @@ INSERT INTO `tbl_districts` (`id`, `name`, `latitude`, `longitude`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `tbl_households`
+--
+
+CREATE TABLE `tbl_households` (
+  `id` int(11) NOT NULL,
+  `villager_id` int(11) NOT NULL,
+  `family_group` varchar(10) NOT NULL,
+  `family_member` int(11) NOT NULL,
+  `sara` varchar(50) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_households`
+--
+
+INSERT INTO `tbl_households` (`id`, `villager_id`, `family_group`, `family_member`, `sara`) VALUES
+(4, 6, 'B40', 4, 'IDK');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `tbl_incidents`
 --
 
@@ -110,7 +134,8 @@ CREATE TABLE `tbl_incidents` (
   `village_id` int(11) DEFAULT NULL,
   `type` varchar(50) NOT NULL,
   `description` text NOT NULL,
-  `location` text NOT NULL,
+  `latitude` double NOT NULL,
+  `longitude` double NOT NULL,
   `image` text NOT NULL,
   `urgency_level` varchar(50) NOT NULL,
   `date_created` datetime NOT NULL DEFAULT current_timestamp(),
@@ -121,10 +146,8 @@ CREATE TABLE `tbl_incidents` (
 -- Dumping data for table `tbl_incidents`
 --
 
-INSERT INTO `tbl_incidents` (`id`, `villager_id`, `village_id`, `type`, `description`, `location`, `image`, `urgency_level`, `date_created`, `status`) VALUES
-(8, 1, 3, 'Landslide', 'g', 'g', 'incident_8.png', 'Pending', '2025-12-29 18:45:29', 'Submitted'),
-(9, 1, 3, 'Fire', 'g', 'g', 'incident_9.png', 'In Progress', '2025-12-29 20:00:18', 'Submitted'),
-(10, 1, 3, 'Medical Emergency', 'kk', 'jjjj', 'incident_10.png', 'Reject', '2025-12-29 22:22:53', 'Submitted');
+INSERT INTO `tbl_incidents` (`id`, `villager_id`, `village_id`, `type`, `description`, `latitude`, `longitude`, `image`, `urgency_level`, `date_created`, `status`) VALUES
+(8, 1, 3, 'Landslide', 'Road completely blocked', 6.2762198, 100.4165733, 'incident_8.png', 'High', '2026-01-01 18:45:29', 'Resolved');
 
 -- --------------------------------------------------------
 
@@ -135,7 +158,13 @@ INSERT INTO `tbl_incidents` (`id`, `villager_id`, `village_id`, `type`, `descrip
 CREATE TABLE `tbl_sos` (
   `id` int(11) NOT NULL,
   `villager_id` int(11) NOT NULL,
-  `village_id` int(11) NOT NULL,
+  `village_id` int(11) DEFAULT NULL,
+  `type` varchar(50) NOT NULL,
+  `description` text NOT NULL,
+  `latitude` double NOT NULL,
+  `longitude` double NOT NULL,
+  `image` text NOT NULL,
+  `urgency_level` varchar(50) NOT NULL,
   `status` varchar(50) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -144,8 +173,8 @@ CREATE TABLE `tbl_sos` (
 -- Dumping data for table `tbl_sos`
 --
 
-INSERT INTO `tbl_sos` (`id`, `villager_id`, `village_id`, `status`, `created_at`) VALUES
-(0, 1, 1, 'Submitted', '2025-12-29 23:33:05');
+INSERT INTO `tbl_sos` (`id`, `villager_id`, `village_id`, `type`, `description`, `latitude`, `longitude`, `image`, `urgency_level`, `status`, `created_at`) VALUES
+(1, 1, 1, 'Flood', 'Severe flood reported near river', 3.139, 101.6869, 'incident_10.png', 'Critical', 'Reject', '2025-12-29 22:22:53');
 
 -- --------------------------------------------------------
 
@@ -188,7 +217,7 @@ CREATE TABLE `tbl_users` (
   `failed_attempts` int(11) DEFAULT 0,
   `lock_until` datetime DEFAULT NULL,
   `otp` varchar(255) DEFAULT NULL,
-  `expired_at` datetime DEFAULT current_timestamp()
+  `expired_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -213,17 +242,22 @@ CREATE TABLE `tbl_villagers` (
   `email` varchar(100) NOT NULL,
   `phone` varchar(25) NOT NULL,
   `village_id` int(11) DEFAULT NULL,
+  `address` text NOT NULL,
   `password` text NOT NULL,
-  `regdate` datetime NOT NULL DEFAULT current_timestamp()
+  `regdate` datetime NOT NULL DEFAULT current_timestamp(),
+  `household_id` int(11) DEFAULT NULL,
+  `failed_attempts` int(11) DEFAULT NULL,
+  `lock_until` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `tbl_villagers`
 --
 
-INSERT INTO `tbl_villagers` (`id`, `name`, `email`, `phone`, `village_id`, `password`, `regdate`) VALUES
-(1, 't', 't@gmail.com', '1', 1, '$2y$10$8HHVNHSM1LiUwIqSJGj72OsyhHNHODqnBrai2Avvhrc3XvpcXXueK', '2025-12-28 20:57:46'),
-(3, 'Bakkien', 'bakkien@gmail.com', '0108300289', 3, '$2y$10$fdCd6t9jNs/0OaZpYA5KcuB30H7GpEXnxRlgJGtQayZbmglIDJqgu', '2025-12-30 23:06:11');
+INSERT INTO `tbl_villagers` (`id`, `name`, `email`, `phone`, `village_id`, `address`, `password`, `regdate`, `household_id`, `failed_attempts`, `lock_until`) VALUES
+(1, 't', 't@gmail.com', '1', 1, '', '$2y$10$8HHVNHSM1LiUwIqSJGj72OsyhHNHODqnBrai2Avvhrc3XvpcXXueK', '2025-12-28 20:57:46', NULL, NULL, NULL),
+(3, 'Bakkien', 'bakkien@gmail.com', '0108300289', 1, '', '$2y$10$fdCd6t9jNs/0OaZpYA5KcuB30H7GpEXnxRlgJGtQayZbmglIDJqgu', '2025-12-30 23:06:11', NULL, NULL, NULL),
+(6, 'asd', 'asd@gmail.com', '0147852369', 3, '123, Taman Pasu, 06000, Jitra, Kedah', '$2y$10$CPNnwXe83yh5swIlFDY8COyEwcJ9PcgC7Hc/nyt8kOThe6HkaQOsm', '2026-01-02 06:01:48', 4, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -244,7 +278,7 @@ CREATE TABLE `tbl_villages` (
 --
 
 INSERT INTO `tbl_villages` (`id`, `village_name`, `latitude`, `longitude`, `subdistrict_id`) VALUES
-(1, 'Taman Desa', 3.10591, 101.68683, NULL),
+(1, 'Taman Bunga', 3.10591, 101.68683, 1),
 (3, 'Taman Pasu', 6.2762198, 100.4165733, 1);
 
 --
@@ -271,11 +305,24 @@ ALTER TABLE `tbl_districts`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `tbl_households`
+--
+ALTER TABLE `tbl_households`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `tbl_incidents`
 --
 ALTER TABLE `tbl_incidents`
   ADD PRIMARY KEY (`id`),
   ADD KEY `fk_incidents_village` (`village_id`);
+
+--
+-- Indexes for table `tbl_sos`
+--
+ALTER TABLE `tbl_sos`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_sos_village` (`village_id`);
 
 --
 -- Indexes for table `tbl_subdistricts`
@@ -315,7 +362,7 @@ ALTER TABLE `tbl_villages`
 -- AUTO_INCREMENT for table `tbl_announcements`
 --
 ALTER TABLE `tbl_announcements`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `tbl_audit_log`
@@ -330,10 +377,22 @@ ALTER TABLE `tbl_districts`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
+-- AUTO_INCREMENT for table `tbl_households`
+--
+ALTER TABLE `tbl_households`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
 -- AUTO_INCREMENT for table `tbl_incidents`
 --
 ALTER TABLE `tbl_incidents`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT for table `tbl_sos`
+--
+ALTER TABLE `tbl_sos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `tbl_subdistricts`
@@ -351,7 +410,7 @@ ALTER TABLE `tbl_users`
 -- AUTO_INCREMENT for table `tbl_villagers`
 --
 ALTER TABLE `tbl_villagers`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `tbl_villages`
@@ -374,6 +433,12 @@ ALTER TABLE `tbl_announcements`
 --
 ALTER TABLE `tbl_incidents`
   ADD CONSTRAINT `fk_incidents_village` FOREIGN KEY (`village_id`) REFERENCES `tbl_villages` (`id`) ON UPDATE CASCADE;
+
+--
+-- Constraints for table `tbl_sos`
+--
+ALTER TABLE `tbl_sos`
+  ADD CONSTRAINT `fk_sos_village` FOREIGN KEY (`village_id`) REFERENCES `tbl_villages` (`id`) ON UPDATE CASCADE;
 
 --
 -- Constraints for table `tbl_subdistricts`
