@@ -3,12 +3,17 @@ require_once('includes/auth_user.php');
 require_once('includes/dbconnect.php');
 date_default_timezone_set('Asia/Kuala_Lumpur');
 
-//  URL Parameter Handling
+// URL Parameter Handling
 $page = $_GET['page'] ?? 'dashboard';
 $search = $_GET['search'] ?? '';
 $village_filter = $_GET['village'] ?? '';
 $selectedVillage = $village_filter !== '' ? (int)$village_filter : '';
 
+// --- LOGIC FIX: Initialize variables at the top to prevent Undefined Variable warnings ---
+$householdStats = [];
+$incidentResults = null;
+$sosResults = null;
+$totalVillagersCount = 0;
 
 if (isset($_POST['action']) && $_POST['action'] === 'resolve_incident' && isset($_POST['incident_id'])) {
     $incident_id = (int)$_POST['incident_id'];
@@ -25,23 +30,14 @@ if (isset($_POST['action']) && $_POST['action'] === 'resolve_incident' && isset(
     $update_stmt->close();
 }
 
-// --- UPDATED CODE START: Standardized CSS Class Helpers (Same as Ketua Kampung Page) ---
-/**
- * Helper to get urgency badge class modeled after the Ketua Kampung logic
- */
+// Standardized CSS Class Helpers
 function getUrgencyClass($level) {
-    // badge urgency {level}
     return "urgency " . strtolower(trim($level));
 }
 
-/**
- * Helper to get status badge class modeled after the Ketua Kampung logic
- */
 function getStatusClass($status) {
-    // badge status {state} (handles spaces like "In Progress" -> "in-progress")
     return "status " . strtolower(str_replace(' ', '-', trim($status)));
 }
-// --- UPDATED CODE END ---
 
 // Fetch coordinates for the active village
 $active_vid = $_SESSION['active_weather_village_id'] ?? 0;
@@ -57,7 +53,7 @@ if ($active_vid > 0) {
     $stmt->close();
 }
 
-//  Helper for active sidebar links
+// Helper for active sidebar links
 function isActive($target) {
     global $page;
     return $page === $target ? 'active' : '';
@@ -66,7 +62,6 @@ function isActive($target) {
 // --- BACKEND DATA FETCHING ---
 
 // Total Villagers Count
-$totalVillagersCount = 0;
 $resTotal = $conn->query("SELECT COUNT(*) AS total FROM tbl_villagers");
 if ($resTotal) {
     $rowTotal = $resTotal->fetch_assoc();
@@ -83,10 +78,8 @@ $villagesQuery = "
 ";
 $villagesResult = $conn->query($villagesQuery);
 
-// Incident Results (if applicable)
-$incidentResults = null;
+// Incident Results
 if ($page === 'incident') {
-    // --- UPDATED CODE START: Filter Query for 'In Progress' status only ---
     $sql = "SELECT i.*, v.village_name 
             FROM tbl_incidents i 
             JOIN tbl_villages v ON i.village_id = v.id 
@@ -106,7 +99,6 @@ if ($page === 'incident') {
         array_push($params, $village_filter);
         $types .= "i";
     }
-    // --- UPDATED CODE END ---
     $sql .= " ORDER BY i.date_created DESC";
     $stmt = $conn->prepare($sql);
     if (!empty($params)) $stmt->bind_param($types, ...$params);
@@ -114,40 +106,60 @@ if ($page === 'incident') {
     $incidentResults = $stmt->get_result();
 }
 
-// SOS Results (if applicable)
-$sosResults = null;
+// SOS Results
 if ($page === 'sos') {
-    $sql = "SELECT s.*, v.village_name, vr.name as villager_name FROM tbl_sos s 
+    $sql = "SELECT s.*, v.village_name, vr.name as villager_name 
+            FROM tbl_sos s 
             JOIN tbl_villages v ON s.village_id = v.id 
-            JOIN tbl_villagers vr ON s.villager_id = vr.id 
-            WHERE 1";
+            JOIN tbl_villagers vr ON s.villager_id = vr.id
+            WHERE 1=1"; // Placeholder to allow easy AND appending
     
     $params = [];
     $types = "";
 
-    if ($search !== '') {
-        // Updated to search by villager name or possibly emergency description if column exists
-        $sql .= " AND (vr.name LIKE ? OR v.village_name LIKE ?)";
+    if ($search !== '') { 
+        $sql .= " AND (vr.name LIKE ? OR s.type LIKE ?)"; 
         $s = "%$search%";
         array_push($params, $s, $s);
         $types .= "ss";
     }
-
-    if ($selectedVillage !== '') {
-        $sql .= " AND s.village_id = ?";
+    if ($selectedVillage !== '') { 
+        $sql .= " AND s.village_id = ?"; 
         array_push($params, $selectedVillage);
         $types .= "i";
     }
-
+    
     $sql .= " ORDER BY s.created_at DESC";
     $stmt = $conn->prepare($sql);
     if (!empty($params)) $stmt->bind_param($types, ...$params);
-    $stmt->execute();
+    $stmt->execute(); 
     $sosResults = $stmt->get_result();
+}
+
+// Household Analysis Backend Logic (Fixed structure: Moved outside of SOS block)
+if ($page === 'household') {
+    $statsQuery = "
+        SELECT 
+            v.village_name, 
+            v.id as village_id,
+            SUM(CASE WHEN h.family_group = 'B40' THEN 1 ELSE 0 END) as b40_count,
+            SUM(CASE WHEN h.family_group = 'M40' THEN 1 ELSE 0 END) as m40_count,
+            SUM(CASE WHEN h.family_group = 'T20' THEN 1 ELSE 0 END) as t20_count
+        FROM tbl_villages v
+        LEFT JOIN tbl_villagers vr ON v.id = vr.village_id
+        LEFT JOIN tbl_households h ON vr.id = h.villager_id
+        GROUP BY v.id, v.village_name
+        ORDER BY v.village_name ASC
+    ";
+    $statsRes = $conn->query($statsQuery);
+    if ($statsRes) {
+        while($row = $statsRes->fetch_assoc()) {
+            $householdStats[] = $row;
+        }
+    }
 }
 ?>
 
-<!-- frontend -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -156,6 +168,7 @@ if ($page === 'sos') {
     <link rel="icon" type="image/png" href="images/icon.png">
     <title>Penghulu Dashboard | Digital Village Dashboard Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="css/penghuludashboard.css" rel="stylesheet" type="text/css" />
     <link href="css/style.css" rel="stylesheet" type="text/css" />
 </head>
@@ -187,8 +200,8 @@ if ($page === 'sos') {
                     ];
                     echo $roleNames[$_SESSION['role']] ?? 'Unknown';
                     ?></div>
-                <div style="font-size: 14px;"><?php echo $_SESSION['user_name']; ?></div>
-                <div style="font-size: 13px;opacity: 0.8;"><?php echo $_SESSION['user_email']; ?></div>
+                <div style="font-size: 14px;"><?php echo htmlspecialchars($_SESSION['user_name']); ?></div>
+                <div style="font-size: 13px;opacity: 0.8;"><?php echo htmlspecialchars($_SESSION['user_email']); ?></div>
             </div>
         </div>
 
@@ -212,11 +225,9 @@ if ($page === 'sos') {
         </a>
     </div>
 
-    <!-- right content-->
     <main class="right-content">
 
         <?php if ($page === 'dashboard'): ?>
-            <!-- Weather Data Hook: Passes dynamic coordinates to JS -->
             <div id="dashboard" 
                  data-village="<?= $active_vid ?>" 
                  data-lat="<?= $subdistricts_lat ?>" 
@@ -228,21 +239,19 @@ if ($page === 'sos') {
                 <p class="subtitle">Overview of villager population across communities</p>
             </div>
             
-            <!-- COMPACT WEATHER CARD -->
-                <div class="weather-card <?= $active_vid == 0 ? 'inactive-weather' : '' ?>">
+            <div class="weather-card <?= $active_vid == 0 ? 'inactive-weather' : '' ?>">
                 <h3>JITRA</h3>    
                 <div class="stat-icon" id="weatherIcon">--</div>
-                    <div class="stat-content">
-                        <p>Current Weather</p>
-                        <h2 id="weatherTemp">--°C</h2>
-                        <div id="weatherDesc"></div>
-                    </div>
+                <div class="stat-content">
+                    <p>Current Weather</p>
+                    <h2 id="weatherTemp">--°C</h2>
+                    <div id="weatherDesc"></div>
                 </div>
+            </div>
 
-            <!-- VILLAGE CARDS -->
             <div class="village-grid">
                 <?php if ($villagesResult && $villagesResult->num_rows > 0): ?>
-                    <?php while ($v = $villagesResult->fetch_assoc()): ?>
+                    <?php $villagesResult->data_seek(0); while ($v = $villagesResult->fetch_assoc()): ?>
                         <div class="village-card <?= ($active_vid == $v['id']) ? 'active-village' : '' ?>">
                             <div class="village-header">
                                 <div>
@@ -277,7 +286,6 @@ if ($page === 'sos') {
 
                 <form method="GET" style="display:inline-block;">
                     <input type="hidden" name="page" value="incident">
-                    <!-- Maintain search query when switching village -->
                     <?php if($search !== ''): ?>
                         <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
                     <?php endif; ?>
@@ -298,13 +306,14 @@ if ($page === 'sos') {
 
             <form method="GET">
                 <input type="hidden" name="page" value="incident">
+                <input type="hidden" name="village" value="<?= $selectedVillage ?>">
 
                 <div class="controls">
                     <input type="text"
                         name="search"
                         class="search-box"
                         placeholder="Search incidents..."
-                        value="<?= $_GET['search'] ?? '' ?>">
+                        value="<?= htmlspecialchars($search) ?>">
 
                     <div class="control-buttons">
                         <button class="btn-outline" type="submit">Filter</button>
@@ -325,29 +334,24 @@ if ($page === 'sos') {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($incidentResults->num_rows > 0): ?>
+                        <?php if ($incidentResults && $incidentResults->num_rows > 0): ?>
                             <?php while ($row = $incidentResults->fetch_assoc()): ?>
                                 <tr>
                                     <td><?= htmlspecialchars($row['description']) ?></td>
                                     <td><?= htmlspecialchars($row['type']) ?></td>
                                     <td>
-                                        <!-- --- UPDATED CODE START: Standardized Urgency Class --- -->
                                         <span class="badge <?= getUrgencyClass($row['urgency_level']) ?>">
                                             <?= htmlspecialchars($row['urgency_level']) ?>
                                         </span>
-                                        <!-- --- UPDATED CODE END --- -->
                                     </td>
                                     <td><?= htmlspecialchars($row['date_created']) ?></td>
                                     <td>
-                                        <!-- --- UPDATED CODE START: Standardized Status Class --- -->
                                         <span class="badge <?= getStatusClass($row['status']) ?>">
                                             <?= htmlspecialchars($row['status']) ?>
                                         </span>
-                                        <!-- --- UPDATED CODE END --- -->
                                     </td>
                                     <td>
                                         <div class="action-container">
-                                            <!-- Bootstrap Modal Trigger -->
                                             <button type="button" class="btn btn-sm btn-view" 
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#resolveModal"
@@ -360,7 +364,7 @@ if ($page === 'sos') {
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" class="empty-state">
+                                <td colspan="6" class="empty-state">
                                     No incidents to display
                                 </td>
                             </tr>
@@ -371,75 +375,173 @@ if ($page === 'sos') {
 
         <?php elseif ($page === 'sos'): ?>
 
-            <!-- Page Header -->
             <div class="page-header">
                 <div>
                     <h1>SOS Reports</h1>
-                    <p>View emergency SOS alerts submitted by villagers</p>
+                    <p>Monitoring active emergency alerts from villagers</p>
                 </div>
 
-                <!-- Same village dropdown -->
-                <select name="village" class="village-select">
-                    <option value="">All Villages</option>
-                    <?php while ($v = $villagesResult->fetch_assoc()): ?>
-                        <option value="<?= $v['id'] ?>"
-                            <?= ($selectedVillage == $v['id']) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($v['village_name']) ?>
-                        </option>
-                    <?php endwhile; ?>
-                </select>
+                <form method="GET" style="display:inline-block;">
+                    <input type="hidden" name="page" value="sos">
+                    <?php if($search !== ''): ?><input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>"><?php endif; ?>
+                    <select name="village" class="village-select" onchange="this.form.submit()">
+                        <option value="">All Villages</option>
+                        <?php 
+                        $villagesResult->data_seek(0);
+                        while ($v = $villagesResult->fetch_assoc()): 
+                        ?>
+                            <option value="<?= $v['id'] ?>" <?= ($selectedVillage == $v['id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($v['village_name']) ?>
+                            </option>
+                        <?php endwhile; ?>
+                    </select>
+                </form>
             </div>
 
-            <!-- Filter Bar -->
-            <div class="controls">
-                <input type="text" class="search-box" placeholder="Search SOS reports...">
-
-                <!-- No Report Button (RBAC enforced) -->
-                <div class="control-buttons">
-                    <button class="btn-outline">Filter</button>
+            <form method="GET">
+                <input type="hidden" name="page" value="sos">
+                <input type="hidden" name="village" value="<?= $selectedVillage ?>">
+                <div class="controls">
+                    <input type="text" name="search" class="search-box" placeholder="Search by villager or emergency type..." value="<?= htmlspecialchars($search) ?>">
+                    <div class="control-buttons">
+                        <button class="btn-outline" type="submit">Filter</button>
+                    </div>
                 </div>
-            </div>
+            </form>
 
-            <!-- SOS Table -->
             <div class="table-card">
                 <table>
                     <thead>
                         <tr>
-                            <th>Village</th>
+                            <th>Villager</th>
                             <th>Emergency Type</th>
                             <th>Urgency</th>
                             <th>Time Reported</th>
                             <th>Status</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
-
                     <tbody>
-                            <tr>
-                                <td colspan="5" class="empty-state">
-                                    No incidents to display
-                                </td>
-                            </tr>
+                        <?php if ($sosResults && $sosResults->num_rows > 0): ?>
+                            <?php while ($row = $sosResults->fetch_assoc()): ?>
+                                <tr>
+                                    <td class="fw-bold"><?= htmlspecialchars($row['villager_name']) ?></td>
+                                    <td><?= htmlspecialchars($row['type']) ?></td>
+                                    <td>
+                                        <span class="badge <?= getUrgencyClass($row['urgency_level']) ?>">
+                                            <?= htmlspecialchars($row['urgency_level']) ?>
+                                        </span>
+                                    </td>
+                                    <td><?= date('d M Y, h:i A', strtotime($row['created_at'])) ?></td>
+                                    <td>
+                                        <span class="badge <?= getStatusClass($row['status']) ?>">
+                                            <?= htmlspecialchars($row['status']) ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr><td colspan="5" class="empty-state">No SOS alerts found.</td></tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
 
         <?php elseif ($page === 'household'): ?>
-
             <div class="page-header">
-                <div>
-                    <h1>Household-level Analysis</h1>
-                </div>
+                <h1>Household-level Analysis</h1>
+                <p>Income group distribution (B40, M40, T20) across all villages</p>
             </div>
 
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 20px;">
+                <?php foreach ($householdStats as $village): ?>
+                    <div class="col" style="flex: 1 1 300px;">
+                        <div class="card h-100 border-0 shadow-sm rounded-4" style="background: white; border-radius: 1rem; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3" style="display: flex; justify-content: space-between;">
+                                    <div>
+                                        <h5 class="card-title fw-bold mb-0" style="margin: 0; font-weight: bold;"><?= htmlspecialchars($village['village_name']) ?></h5>
+                                        <small class="text-muted">Village ID: <?= $village['village_id'] ?></small>
+                                    </div>
+                                    <div class="badge" style="background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 999px; font-size: 12px;">Analysis</div>
+                                </div>
+                                
+                                <div style="height: 200px; position: relative; margin-top: 15px;">
+                                    <canvas id="chart_<?= $village['village_id'] ?>"></canvas>
+                                </div>
+
+                                <div class="mt-4 border-top pt-3" style="border-top: 1px solid #eee; margin-top: 20px; padding-top: 15px;">
+                                    <div class="row text-center" style="display: flex; text-align: center;">
+                                        <div class="col-4" style="flex: 1; border-right: 1px solid #eee;">
+                                            <div class="small text-muted mb-1">B40</div>
+                                            <div class="fw-bold fs-5 text-danger" style="color: #ef4444; font-weight: bold; font-size: 1.2rem;"><?= $village['b40_count'] ?></div>
+                                        </div>
+                                        <div class="col-4" style="flex: 1; border-right: 1px solid #eee;">
+                                            <div class="small text-muted mb-1">M40</div>
+                                            <div class="fw-bold fs-5 text-warning" style="color: #f59e0b; font-weight: bold; font-size: 1.2rem;"><?= $village['m40_count'] ?></div>
+                                        </div>
+                                        <div class="col-4" style="flex: 1;">
+                                            <div class="small text-muted mb-1">T20</div>
+                                            <div class="fw-bold fs-5 text-success" style="color: #10b981; font-weight: bold; font-size: 1.2rem;"><?= $village['t20_count'] ?></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const stats = <?= json_encode($householdStats) ?>;
+                    
+                    stats.forEach(village => {
+                        const ctx = document.getElementById(`chart_${village.village_id}`).getContext('2d');
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['B40', 'M40', 'T20'],
+                                datasets: [{
+                                    label: 'Number of Households',
+                                    data: [village.b40_count, village.m40_count, village.t20_count],
+                                    backgroundColor: [
+                                        'rgba(239, 68, 68, 0.7)',
+                                        'rgba(245, 158, 11, 0.7)',
+                                        'rgba(16, 185, 129, 0.7)'
+                                    ],
+                                    borderColor: [
+                                        'rgb(239, 68, 68)',
+                                        'rgb(245, 158, 11)',
+                                        'rgb(16, 185, 129)'
+                                    ],
+                                    borderWidth: 1,
+                                    borderRadius: 5
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: false }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: { precision: 0 }
+                                    }
+                                }
+                            }
+                        });
+                    });
+                });
+            </script>
         <?php else: ?>
-
             <h1>Page not found</h1>
-
         <?php endif; ?>
 
     </main>
 
+    <!-- Modal for Resolution (Old Style Structure) -->
     <div class="modal fade" id="resolveModal" tabindex="-1" aria-labelledby="resolveModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -452,14 +554,14 @@ if ($page === 'sos') {
                         <div class="detail-label">Incident Description</div>
                         <div class="detail-value" id="md_desc"></div>
                     </div>
-                    <div class="row">
-                        <div class="col-6">
+                    <div style="display: flex; gap: 20px;">
+                        <div style="flex: 1;">
                             <div class="detail-row">
                                 <div class="detail-label">Type</div>
                                 <div class="detail-value" id="md_type"></div>
                             </div>
                         </div>
-                        <div class="col-6">
+                        <div style="flex: 1;">
                             <div class="detail-row">
                                 <div class="detail-label">Urgency</div>
                                 <div class="detail-value" id="md_urgency"></div>
@@ -475,27 +577,24 @@ if ($page === 'sos') {
                         <div class="detail-value" id="md_status"></div>
                     </div>
 
-                    <div class="alert alert-success mt-3 mb-0 py-2 border-0">
-                        <small><i class="fa-solid fa-info-circle me-1"></i> Proceed to mark this incident as <strong>Resolved</strong>.</small>
+                    <div style="background: #ecfdf5; color: #065f46; padding: 10px; border-radius: 8px; margin-top: 15px; font-size: 13px;">
+                        <i class="fa-solid fa-info-circle"></i> Proceed to mark this incident as <strong>Resolved</strong>.
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <!-- --- UPDATED CODE START: Enforced Horizontal Footer Button Layout --- -->
-                    <div class="d-flex justify-content-end gap-2 w-100 flex-nowrap">
-                        <form method="POST" class="m-0 p-0 d-inline-block">
+                    <div style="display: flex; justify-content: flex-end; gap: 10px; width: 100%;">
+                        <form method="POST" style="margin: 0;">
                             <input type="hidden" name="incident_id" id="md_id">
                             <input type="hidden" name="action" value="resolve_incident">
-                            <button type="submit" class="btn btn-resolve btn-sm">Confirm Resolve</button>
-                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn-resolve" style="padding: 8px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">Confirm Resolve</button>
+                            <button type="button" class="btn-secondary" data-bs-dismiss="modal" style="padding: 8px 16px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
                         </form>
                     </div>
-                    <!-- --- UPDATED CODE END --- -->
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle (Includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
@@ -513,4 +612,3 @@ if ($page === 'sos') {
     <script type="text/javascript" src="js/sidebar.js"></script>
 </body>
 </html>
-
