@@ -11,17 +11,12 @@ if ($_SESSION['role'] != '1') {
 }
 
 // --- SECURITY: AUTHORIZATION ---
-// UPDATED: Using 'area_id' from session which corresponds to the 'area_id' column in tbl_users.
+// Using 'area_id' from session which corresponds to the 'area_id' column in tbl_users.
 // For Penghulu, this ID typically represents their assigned Subdistrict/Mukim.
 $user_area_id = filter_var($_SESSION['area_id'] ?? 0, FILTER_VALIDATE_INT);
 
 if (!$user_area_id) {
     die("Security Error: No subdistrict assigned to this account. Please contact the administrator.");
-}
-
-// --- SECURITY: CSRF TOKEN GENERATION ---
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 // URL Parameter Handling - Sanitized
@@ -39,23 +34,6 @@ $totalVillagersCount = 0;
 $success_msg = null;
 $error_msg = null;
 
-// --- DYNAMIC WEATHER & LOCATION LOGIC ---
-// Fetches weather coordinates for the user's SPECIFIC jurisdiction area
-$weatherConfig = ['name' => 'Unknown', 'lat' => 0, 'lng' => 0, 'id' => $user_area_id];
-
-// UPDATED SQL COMMAND: As requested, using district_id to filter the subdistrict record
-$stmtW = $conn->prepare("SELECT district_id, name, latitude, longitude FROM tbl_subdistricts WHERE district_id = ? LIMIT 1");
-$stmtW->bind_param("i", $user_area_id);
-$stmtW->execute();
-$resW = $stmtW->get_result();
-if ($rowW = $resW->fetch_assoc()) {
-    $weatherConfig['name'] = $rowW['name'];
-    $weatherConfig['lat'] = $rowW['latitude'];
-    $weatherConfig['lng'] = $rowW['longitude'];
-    $weatherConfig['id'] = $rowW['district_id']; 
-}
-$stmtW->close();
-
 // --- AUTHORIZED ANNOUNCEMENT LOGIC ---
 // Only broadcast to villages within the logged-in user's jurisdiction (area_id)
 $managed_villages = [];
@@ -69,10 +47,7 @@ while ($v_row = $v_res->fetch_assoc()) {
 $v_stmt->close();
 
 if (isset($_POST['submit_announcement']) && $page === 'announcement') {
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        die("Security Validation Failed.");
-    }
-
+    // Input Validation: Sanitizing and length limiting
     $title = trim(mb_substr($_POST['title'], 0, 100));
     $description = trim(mb_substr($_POST['description'], 0, 1000));
     $type = $_POST['type'];
@@ -80,7 +55,7 @@ if (isset($_POST['submit_announcement']) && $page === 'announcement') {
     if (empty($managed_villages)) {
         $error_msg = "No villages found in your jurisdiction.";
     } elseif ($title && $description && $type) {
-        // Cooldown check for managed villages
+        // Cooldown check for managed villages using Prepared Statement
         $placeholders = implode(',', array_fill(0, count($managed_villages), '?'));
         $types = str_repeat('i', count($managed_villages));
         $stmt = $conn->prepare("SELECT COUNT(*) FROM tbl_announcements WHERE village_id IN ($placeholders) AND created_at >= (NOW() - INTERVAL 5 MINUTE)");
@@ -106,9 +81,6 @@ if (isset($_POST['submit_announcement']) && $page === 'announcement') {
 
 // --- AUTHORIZED INCIDENT RESOLUTION ---
 if (isset($_POST['action']) && $_POST['action'] === 'resolve_incident' && isset($_POST['incident_id'])) {
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        die("Security Validation Failed.");
-    }
     $incident_id = (int)$_POST['incident_id'];
     
     // Security check: Ensures the incident belongs to a village in the user's jurisdiction
@@ -228,11 +200,23 @@ function isActive($target) { global $page; return $page === $target ? 'active' :
     <div class="sidebar">
         <div class="logo"><img src="images/icon.png" style="scale: 0.75;" alt="Logo" class="logo-img"><p>DVDM</p></div>
         <div class="user-info-box">
-            <div class="avatar"><a class="avatar-upload"><i class="fas fa-user"></i></a></div>
+            <div class="avatar">
+                <a class="avatar-upload" title="Upload Avatar">
+                    <i class="fas fa-user"></i>
+                </a>
+            </div>
             <div class="user-info">
-                <div style="font-weight: bold; font-size: 15px;">Penghulu (Mukim <?= htmlspecialchars($weatherConfig['name']) ?>)</div>
-                <div style="font-size: 14px;"><?= htmlspecialchars($_SESSION['user_name']) ?></div>
-                <div style="font-size: 13px; opacity: 0.8;"><?= htmlspecialchars($_SESSION['user_email']) ?></div>
+                <div style="font-weight: bold;font-size: 15px;">
+                    <?php
+                    $roleNames = [
+                        '0' => 'Ketua Kampung',
+                        '1' => 'Penghulu',
+                        '2' => 'Pejabat Daerah'
+                    ];
+                    echo $roleNames[$_SESSION['role']] ?? 'Unknown';
+                    ?></div>
+                <div style="font-size: 14px;"><?php echo htmlspecialchars($_SESSION['user_name']); ?></div>
+                <div style="font-size: 13px;opacity: 0.8;"><?php echo htmlspecialchars($_SESSION['user_email']); ?></div>
             </div>
         </div>
         <a href="?page=dashboard" class="<?= isActive('dashboard') ?>"><i class="fa-solid fa-table"></i> Dashboard</a>
@@ -249,10 +233,13 @@ function isActive($target) { global $page; return $page === $target ? 'active' :
         <?php if($error_msg): ?><div class="alert alert-danger" style="padding:15px; background:#fee2e2; color:#991b1b; border-radius:8px; margin-bottom:20px; border-left: 5px solid #ef4444;"><i class="fa-solid fa-circle-exclamation me-2"></i><?= htmlspecialchars($error_msg) ?></div><?php endif; ?>
 
         <?php if ($page === 'dashboard'): ?>
-            <div id="dashboard" data-area-type="1" data-area-id="<?= (int)$weatherConfig['id'] ?>" data-location="<?= htmlspecialchars($weatherConfig['name']) ?>" data-lat="<?= (float)$weatherConfig['lat'] ?>" data-lng="<?= (float)$weatherConfig['lng'] ?>"></div>
-            <div class="dashboard-header"><h1>Subdistrict Overview: <?= htmlspecialchars($weatherConfig['name']) ?></h1><p class="subtitle">Live population and weather data for your jurisdiction.</p></div>
+            <div id="dashboard"
+                data-area-type="<?= $_SESSION['role'] ?>"
+                data-area-id="<?= $_SESSION['area_id'] ?>">
+            </div>
+            <div class="dashboard-header"><h1>Dashboard Overview:</h1><p class="subtitle">Live population and weather data for your jurisdiction.</p></div>
             <div class="weather-card">
-                <h3><?= htmlspecialchars(strtoupper($weatherConfig['name'])) ?> WEATHER</h3>    
+                <h3>WEATHER</h3>    
                 <div class="stat-icon" id="weatherIcon">--</div>
                 <div class="stat-content"><p>Current Weather</p><h2 id="weatherTemp">--°C</h2><div id="weatherDesc"></div></div>
             </div>
@@ -270,10 +257,8 @@ function isActive($target) { global $page; return $page === $target ? 'active' :
             <div class="page-header"><h1>Broadcast Announcement</h1><p>Send messages to all villages in Mukim <?= htmlspecialchars($weatherConfig['name']) ?></p></div>
             <div class="table-card"><div class="announcement-form-container">
                 <form method="POST">
-                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                     <div class="form-group"><label>Title</label><input type="text" name="title" required placeholder="Enter title..."></div>
-                    <div class="form-group"><label>Type</label>
-                    <select name="type">
+                    <div class="form-group"><label>Type</label><select name="type" required>
                         <option value="">-- Select Type --</option>
                         <option value="emergency">🚨 Emergency</option>
                         <option value="weather">🌧 Weather</option>
@@ -289,7 +274,6 @@ function isActive($target) { global $page; return $page === $target ? 'active' :
             <h1>Report Map</h1>
             <div id="map" style="height:500px; width:100%; border-radius:10px;"></div>
             <script src="js/reports.js"></script>
-            </script>
 
         <?php elseif ($page === 'incident'): ?>
             <div class="page-header"><div><h1>Incidents</h1><p>Active reports in your Mukim</p></div>
@@ -378,12 +362,11 @@ function isActive($target) { global $page; return $page === $target ? 'active' :
         <?php endif; ?>
     </main>
 
-    <!-- Modal for Resolution (Security Hardened) -->
+    <!-- Modal for Resolution (Procedural Security) -->
     <div class="modal fade" id="resolveModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
         <div class="modal-header"><h5 class="modal-title">Resolve Incident</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST">
             <div class="modal-body">
-                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                 <input type="hidden" name="incident_id" id="md_id">
                 <input type="hidden" name="action" value="resolve_incident">
                 <div class="detail-row"><div class="detail-label">Description</div><div class="detail-value" id="md_desc"></div></div>
